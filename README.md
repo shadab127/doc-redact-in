@@ -2,7 +2,41 @@
 
 Client-side, mobile-first, open-source web tool for redacting Aadhaar, PAN, passport, and other Indian ID documents. Everything runs in the browser — no file ever touches the server.
 
-**Status:** Pre-build. RFC v2 locked (2026-05-02). Licensed under AGPL-3.0-or-later.
+**Status:** MVP built (W1–W5 of RFC v2). 127 unit tests green. Next step: domain registration + Cloudflare Pages deploy + launch sequence (r/developersIndia → Show HN → Product Hunt India). Licensed under AGPL-3.0-or-later.
+
+## Verify the privacy claim yourself
+
+The whole pitch is "nothing leaves your device." The way to check that:
+
+1. Open this site in any browser, open DevTools → Network tab.
+2. Drop a file or take a photo of an Indian ID document.
+3. Watch the detection + download flow.
+4. Confirm you see no request carrying your document leave the tab. The only network traffic during redaction should be the same-origin static assets and lazy WebAssembly fetches.
+
+This property is enforced in CI — `tests/e2e/no-outbound-network.spec.ts` fails the build if any cross-origin request fires during redaction.
+
+## Quickstart
+
+```sh
+npm install
+npm run dev       # http://localhost:3000
+npm test          # 127 unit tests (vitest)
+npm run test:e2e  # Playwright: smoke + no-outbound-network
+npm run build     # Static export → ./out (Cloudflare Pages target)
+```
+
+Node ≥ 20.
+
+## Pre-launch checklist (manual steps outside this repo)
+
+- [ ] Register `docredact.in` (~₹600/yr).
+- [ ] Create a Cloudflare Pages project and connect this repo; deploy the `out/` directory.
+- [ ] Generate `public/og.png` (1200×630 PNG from `public/og.svg`) — Twitter/LinkedIn/WhatsApp do not render SVG OG images.
+- [ ] Enable Cloudflare Web Analytics; set `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` as a Pages env var.
+- [ ] Set up Cloudflare Email Routing for `hello@docredact.in`.
+- [ ] Deploy `workers/waitlist.ts` and `workers/contact.ts` via `wrangler`; bind `WAITLIST_KV`; route `/api/waitlist` and `/api/contact` to them; set `ALLOWED_ORIGINS=https://docredact.in,https://www.docredact.in` and `RESEND_API_KEY` secret.
+- [ ] Run the real-world Tesseract accuracy spike on 20 Aadhaar photos (Validation Gate #1 per RFC §16).
+- [ ] Verify on a physical iOS Safari device (RFC §9.4).
 
 ## What it does
 

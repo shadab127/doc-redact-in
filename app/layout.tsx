@@ -15,6 +15,17 @@ export const metadata: Metadata = {
   title: 'DocRedact.in — Redact Aadhaar, PAN & passport in your browser',
   description:
     'Client-side, mobile-first redactor for Indian ID documents. Your browser processes the file. Nothing leaves your device.',
+  metadataBase: new URL('https://docredact.in'),
+  openGraph: {
+    type: 'website',
+    siteName: 'DocRedact.in',
+    // Twitter / LinkedIn / WhatsApp ignore SVG OG images. /og.png must be
+    // generated from og.svg before launch (e.g. via any SVG→PNG converter
+    // at 1200×630) and committed alongside. Until then, the card falls
+    // back to the page <meta description> with no hero image.
+    images: [{ url: '/og.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image', images: ['/og.png'] },
 };
 
 const CF_ANALYTICS_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN;

@@ -11,6 +11,19 @@ const nextConfig = {
   images: { unoptimized: true },
   reactStrictMode: true,
   trailingSlash: true,
+  webpack: (config) => {
+    // face-api.js ships a UMD fallback that webpack cannot statically analyse;
+    // this is harmless at runtime (we never hit the CommonJS path in the
+    // browser) but it logs a noisy warning on every build. Suppress it.
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings ?? []),
+      {
+        module: /@vladmandic\/face-api/,
+        message: /Critical dependency: require function is used/,
+      },
+    ];
+    return config;
+  },
 };
 
 export default nextConfig;

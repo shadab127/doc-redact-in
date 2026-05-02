@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DropZone } from './DropZone';
 import { CameraCapture } from './CameraCapture';
 import {
@@ -17,6 +17,8 @@ import {
   toggleKeyString,
   type ToggleKey,
 } from './DetectionToggleList';
+import { PageNavigator } from './PageNavigator';
+import { PreviewCanvas } from './PreviewCanvas';
 import { redactedFilename, triggerDownload } from './download';
 import {
   runDetectionOnDocument,
@@ -86,11 +88,13 @@ export function RedactorApp() {
   const [state, setState] = useState<RedactionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map());
+  const [previewPageIndex, setPreviewPageIndex] = useState<number>(0);
 
   const onFile = async (file: File) => {
     setStatus('running');
     setError(null);
     setState(null);
+    setPreviewPageIndex(0);
     try {
       const next = await processDocument(file);
       setState(next);
@@ -147,6 +151,17 @@ export function RedactorApp() {
       0
     ) ?? 0;
 
+  const previewPage = state?.result.pages[previewPageIndex] ?? null;
+  const previewRaster = state?.rasters[previewPageIndex] ?? null;
+  const previewEnabledFlags = useMemo<boolean[]>(() => {
+    if (!previewPage) return [];
+    return previewPage.detections.map(
+      (_, i) =>
+        enabled.get(toggleKeyString({ pageIndex: previewPage.pageIndex, detectionIndex: i })) ??
+        false
+    );
+  }, [previewPage, enabled]);
+
   return (
     <section style={{ marginTop: 24 }}>
       <div className="hero-mobile">
@@ -169,6 +184,22 @@ export function RedactorApp() {
             Found <strong>{totalDetections}</strong> detection
             {totalDetections === 1 ? '' : 's'} across {state.result.pages.length} page
             {state.result.pages.length === 1 ? '' : 's'} in {state.result.totalElapsedMs} ms.
+            {state.result.pages.length > 1 && (
+              <PageNavigator
+                pageIndex={previewPageIndex}
+                totalPages={state.result.pages.length}
+                onPageChange={setPreviewPageIndex}
+              />
+            )}
+            {previewRaster && previewPage && (
+              <div style={{ marginTop: 12, marginBottom: 12 }}>
+                <PreviewCanvas
+                  raster={previewRaster}
+                  detections={previewPage.detections}
+                  enabledFlags={previewEnabledFlags}
+                />
+              </div>
+            )}
             <DetectionToggleList
               pages={state.result.pages}
               enabled={enabled}
