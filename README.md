@@ -1,0 +1,92 @@
+# DocRedact.in
+
+Client-side, mobile-first, open-source web tool for redacting Aadhaar, PAN, passport, and other Indian ID documents. Everything runs in the browser — no file ever touches the server.
+
+**Status:** Pre-build. RFC v2 locked (2026-05-02). Licensed under AGPL-3.0-or-later.
+
+## What it does
+
+Drop an image or PDF — or tap "Take Photo" on mobile — then auto-detect Aadhaar number, PAN, passport MRZ, UIDAI QR, photograph → mask first 8 Aadhaar digits, blur photo, redact QR → download a clean **image-only PDF** (no searchable text layer, so masked content can't be extracted with `pdftotext`).
+
+**Positioning:** "UIDAI's masked-Aadhaar download is a 5-step OTP portal. This is one tap on your phone, free, nothing uploaded, and the code is public."
+
+## Why it exists
+
+- RBI + UIDAI circulars require masked Aadhaar for KYC sharing
+- DPDP Act (rules notified Nov 2025) adds fiduciary liability for mishandled PII
+- UIDAI's own masked-Aadhaar download is OTP-gated and slow
+- Third-party alternatives are ad-riddled blogspot pages or Windows-only tools
+- Privacy framing ("runs in your browser, nothing uploaded, read our code") is a genuine post-DPDP wedge
+
+## Non-goals (deliberately)
+
+- Not a KYC verification service — only redaction
+- Not a storage service — files never leave the browser
+- Not a tax/legal advisory product
+- No accounts / logins in v1
+- No PWA / offline mode in v1
+- No batch processing or API in v1 (B2B API tier is post-MVP)
+- No scenario presets in v1 (auto-detect everything; user toggles off)
+- No regional language OCR (English only; Verhoeff checksum filters false positives)
+
+## Primary segments
+
+- **Consumer (free, always):** individuals sending Aadhaar/PAN to employers, landlords, platforms, especially on mobile
+- **B2B API (paid, post-MVP):** HR tech (Keka, Darwinbox, Zimyo), fintech KYC (Digio, Hyperverge competitors), prop-tech KYC pipelines
+
+## Tech stack
+
+All client-side, zero server compute for the redaction flow:
+
+- **Frontend:** Next.js 14 (App Router, static export)
+- **Hosting:** Cloudflare Pages (free tier, India edge)
+- **Analytics:** Cloudflare Web Analytics (free, no cookies, same-origin)
+- **Email:** Cloudflare Email Routing (`hello@docredact.in` → personal inbox)
+- **OCR:** Tesseract.js (English only, WASM)
+- **Face detection:** face-api.js (WASM, lazy-loaded)
+- **QR detection:** zxing-wasm
+- **PDF read:** pdf.js (rasterize every page)
+- **PDF write:** pdf-lib (build image-only flattened PDF)
+- **Payments (post-MVP):** Razorpay for B2B API tier
+
+Cost at MVP: ~₹600/year (domain only). Everything else on free tiers.
+
+## MVP scope
+
+**Build phase (5 weekends):**
+- **W1:** Detection core — Tesseract + Aadhaar detector with Verhoeff + PAN detector
+- **W2:** PDF flatten pipeline (rasterize → mask → image-only PDF) + download flow
+- **W3:** Face blur + UIDAI QR + passport MRZ + mobile camera-capture hero CTA
+- **W4:** Flagship SEO page (`/mask-aadhaar-online`) + privacy + terms + how-it-works + CSP lockdown + waitlist + contact + domain + analytics
+- **W5:** Polish + multi-page preview + GitHub repo public + AGPL headers
+
+**Launch phase (3 sequenced weeks):**
+- **LW1:** Soft launch on r/developersIndia
+- **LW2:** Show HN after bug fixes
+- **LW3:** Product Hunt India + r/india + r/indianews
+
+Deliberate v1 omissions: no Pro tier, no batch, no accounts, no payments, no API, no PWA, no regional languages, no scenario presets. Consumer is 100% free. Revenue arrives via B2B conversations in month 3+.
+
+## Design docs
+
+- [`RFC.md`](RFC.md) — technical design, detection pipeline, architecture, milestones, locked decisions
+- [`CLAUDE.md`](CLAUDE.md) — project context, tech decisions, positioning guardrails, validation gates
+
+## Kill criteria
+
+- 90-day organic traffic < 5K visits on `/mask-aadhaar-online` → keyword demand over-estimated
+- 6 months live, zero inbound from HR tech / fintech for the B2B API waitlist → B2B upgrade path isn't real
+- Major incumbent (iLovePDF / Smallpdf / Adobe) ships India-specific auto-detect for free → consumer differentiation gone
+
+## License
+
+DocRedact.in is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+## Contact
+
+- Bugs / features: [GitHub Issues](https://github.com/shadabkhan/doc-redact-in/issues)
+- Private feedback: `hello@docredact.in`
+
+## Related parked ideas
+
+See `../parked-ideas/doc-redact-in.md` for original analysis.
