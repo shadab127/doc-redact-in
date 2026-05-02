@@ -7,16 +7,22 @@
  */
 import { detectAadhaar } from './AadhaarDetector';
 import { detectPan } from './PanDetector';
+import { detectPassportMrz } from './PassportMrzDetector';
 import { createOCRRunner, type OCRInput, type OCRRunner } from './OCRRunner';
+import type { FaceDetectorRunner } from './FaceDetector';
+import type { QrDetectorRunner } from './QrDetector';
 import type {
   Detection,
   DetectionResult,
   DocumentDetectionResult,
+  OCRToken,
   PageDetectionResult,
 } from './types';
 
 export interface RunDetectionOptions {
   ocr?: OCRRunner;
+  face?: FaceDetectorRunner;
+  qr?: QrDetectorRunner;
   rasterizeScale?: number;
 }
 
@@ -54,8 +60,12 @@ function isPdfBlob(input: unknown): boolean {
   return false;
 }
 
-function mergeDetections(tokens: readonly import('./types').OCRToken[]): Detection[] {
-  return [...detectAadhaar(tokens as import('./types').OCRToken[]), ...detectPan(tokens as import('./types').OCRToken[])];
+function textDetections(tokens: OCRToken[]): Detection[] {
+  return [
+    ...detectAadhaar(tokens),
+    ...detectPan(tokens),
+    ...detectPassportMrz(tokens),
+  ];
 }
 
 async function measureImageSource(
@@ -83,17 +93,38 @@ async function measureImageSource(
   return { width: 0, height: 0 };
 }
 
+async function runDetectors(
+  canvas: HTMLCanvasElement | ImageBitmap | Blob | null,
+  ocrInput: OCRInput,
+  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner }
+): Promise<Detection[]> {
+  const tokensPromise = runners.ocr.recognize(ocrInput);
+
+  const canvasForVisual = canvas && !(canvas instanceof Blob) ? canvas : null;
+  const facePromise = canvasForVisual && runners.face
+    ? runners.face.detect(canvasForVisual)
+    : Promise.resolve<Detection[]>([]);
+  const qrPromise = canvasForVisual && runners.qr
+    ? runners.qr.detect(canvasForVisual)
+    : Promise.resolve<Detection[]>([]);
+
+  const [tokens, faces, qrs] = await Promise.all([tokensPromise, facePromise, qrPromise]);
+  return [...textDetections(tokens), ...faces, ...qrs];
+}
+
 async function runOnImage(
   image: OCRInput,
-  ocr: OCRRunner
+  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner }
 ): Promise<DetectionResult> {
   const started = Date.now();
-  const [tokens, source] = await Promise.all([
-    ocr.recognize(image),
+  const canvasLike =
+    image instanceof Blob || typeof image === 'string' ? null : (image as HTMLCanvasElement | ImageBitmap);
+  const [source, detections] = await Promise.all([
     measureImageSource(image),
+    runDetectors(canvasLike, image, runners),
   ]);
   return {
-    detections: mergeDetections(tokens),
+    detections,
     sourceWidth: source.width,
     sourceHeight: source.height,
     elapsedMs: Date.now() - started,
@@ -102,7 +133,7 @@ async function runOnImage(
 
 async function runOnPdf(
   blob: Blob,
-  ocr: OCRRunner,
+  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner },
   pipelineFactory: PdfPipelineFactory,
   scale: number,
   onRaster?: (raster: RasterizedPageLike, pageIndex: number) => void
@@ -117,10 +148,10 @@ async function runOnPdf(
       const pageStart = Date.now();
       const raster = await pipeline.rasterize(i, scale);
       onRaster?.(raster, i);
-      const tokens = await ocr.recognize(raster.canvas);
+      const detections = await runDetectors(raster.canvas, raster.canvas, runners);
       pages.push({
         pageIndex: i,
-        detections: mergeDetections(tokens),
+        detections,
         sourceWidth: raster.width,
         sourceHeight: raster.height,
         elapsedMs: Date.now() - pageStart,
@@ -137,6 +168,14 @@ async function runOnPdf(
   };
 }
 
+function resolveRunners(opts: RunDetectionOptions) {
+  return {
+    ocr: opts.ocr ?? createOCRRunner(),
+    face: opts.face,
+    qr: opts.qr,
+  };
+}
+
 export async function runDetection(
   image: OCRInput,
   opts: RunDetectionOptions = {}
@@ -146,8 +185,7 @@ export async function runDetection(
       'For PDF input, call runDetectionOnDocument(file, { pdfPipeline }) instead of runDetection.'
     );
   }
-  const ocr = opts.ocr ?? createOCRRunner();
-  return runOnImage(image, ocr);
+  return runOnImage(image, resolveRunners(opts));
 }
 
 export interface RunDocumentOptions extends RunDetectionOptions {
@@ -159,17 +197,17 @@ export async function runDetectionOnDocument(
   input: Blob | File | ImageBitmap | HTMLCanvasElement,
   opts: RunDocumentOptions = {}
 ): Promise<DocumentDetectionResult> {
-  const ocr = opts.ocr ?? createOCRRunner();
+  const runners = resolveRunners(opts);
   const scale = opts.rasterizeScale ?? 2;
 
   if (isPdfBlob(input)) {
     if (!opts.pdfPipeline) {
       throw new Error('PDF input requires opts.pdfPipeline to be provided.');
     }
-    return runOnPdf(input as Blob, ocr, opts.pdfPipeline, scale, opts.onRaster);
+    return runOnPdf(input as Blob, runners, opts.pdfPipeline, scale, opts.onRaster);
   }
 
-  const imageResult = await runOnImage(input as OCRInput, ocr);
+  const imageResult = await runOnImage(input as OCRInput, runners);
   return {
     pages: [{ ...imageResult, pageIndex: 0 }],
     totalElapsedMs: imageResult.elapsedMs,

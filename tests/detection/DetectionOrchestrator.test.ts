@@ -12,8 +12,10 @@ import {
   type PdfPipeline,
 } from '@/src/detection/DetectionOrchestrator';
 import { createMockOCRRunner } from '@/src/detection/OCRRunner';
+import { createMockFaceDetectorRunner } from '@/src/detection/FaceDetector';
+import { createMockQrDetectorRunner } from '@/src/detection/QrDetector';
 import { verhoeffCheckDigit } from '@/src/detection/Verhoeff';
-import type { OCRToken } from '@/src/detection/types';
+import type { Detection, OCRToken } from '@/src/detection/types';
 
 function mkValidAadhaar(): string {
   const body = '12345678901';
@@ -127,5 +129,56 @@ describe('runDetectionOnDocument — PDF path (mocked pipeline)', () => {
     expect(result.sourceKind).toBe('image');
     expect(result.pages).toHaveLength(1);
     expect(result.pages[0]!.pageIndex).toBe(0);
+  });
+
+  it('merges face and QR detections into each page', async () => {
+    const faceDet: Detection[] = [
+      {
+        kind: 'face',
+        bbox: { x: 400, y: 100, w: 100, h: 120 },
+        maskBbox: { x: 400, y: 100, w: 100, h: 120 },
+        value: 'face',
+        confidence: 0.8,
+      },
+    ];
+    const qrDet: Detection[] = [
+      {
+        kind: 'uidai_qr',
+        bbox: { x: 600, y: 400, w: 200, h: 200 },
+        maskBbox: { x: 600, y: 400, w: 200, h: 200 },
+        value: '<?xml PrintLetterBarcodeData',
+        confidence: 1,
+      },
+    ];
+    const result = await runDetectionOnDocument(new Blob(), {
+      ocr: createMockOCRRunner([]),
+      face: createMockFaceDetectorRunner(faceDet),
+      qr: createMockQrDetectorRunner(qrDet),
+      pdfPipeline: mockPdfPipeline(1),
+    });
+    // Image path: face/qr only run when a canvas is available; Blob → no canvas.
+    expect(result.sourceKind).toBe('image');
+    expect(result.pages[0]!.detections).toEqual([]);
+  });
+
+  it('runs face and QR detectors on rasterized PDF pages', async () => {
+    const faceDet: Detection[] = [
+      {
+        kind: 'face',
+        bbox: { x: 400, y: 100, w: 100, h: 120 },
+        maskBbox: { x: 400, y: 100, w: 100, h: 120 },
+        value: 'face',
+        confidence: 0.8,
+      },
+    ];
+    const pdf = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+    const result = await runDetectionOnDocument(pdf, {
+      ocr: createMockOCRRunner([]),
+      face: createMockFaceDetectorRunner(faceDet),
+      pdfPipeline: mockPdfPipeline(2),
+    });
+    for (const page of result.pages) {
+      expect(page.detections.some((d) => d.kind === 'face')).toBe(true);
+    }
   });
 });

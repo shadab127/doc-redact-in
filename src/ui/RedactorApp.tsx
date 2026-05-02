@@ -9,13 +9,21 @@
 
 import { useState } from 'react';
 import { DropZone } from './DropZone';
+import { CameraCapture } from './CameraCapture';
 import { redactedFilename, triggerDownload } from './download';
 import {
   runDetectionOnDocument,
   type RasterizedPageLike,
 } from '@/src/detection/DetectionOrchestrator';
 import type { DocumentDetectionResult } from '@/src/detection/types';
+import { createFaceDetectorRunner } from '@/src/detection/FaceDetector';
+import { createQrDetectorRunner } from '@/src/detection/QrDetector';
 import { flattenToImageOnlyPdf } from '@/src/masking/PdfFlattener';
+
+// Hoisted so the face-api model weights and zxing WASM are fetched at most
+// once per browser tab — not re-loaded on every file selection.
+const sharedFaceRunner = createFaceDetectorRunner();
+const sharedQrRunner = createQrDetectorRunner();
 
 type Status = 'idle' | 'running' | 'done' | 'downloading' | 'error';
 
@@ -39,11 +47,15 @@ async function rasterImage(file: Blob): Promise<RasterizedPageLike> {
 }
 
 async function processDocument(file: File): Promise<RedactionState> {
+  const face = sharedFaceRunner;
+  const qr = sharedQrRunner;
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
   if (isPdf) {
     const { createBrowserPdfPipeline } = await import('@/src/pdf/BrowserPdfPipeline');
     const rasters: RasterizedPageLike[] = [];
     const result = await runDetectionOnDocument(file, {
+      face,
+      qr,
       pdfPipeline: createBrowserPdfPipeline,
       onRaster: (r) => {
         rasters.push(r);
@@ -53,7 +65,7 @@ async function processDocument(file: File): Promise<RedactionState> {
     return { result, rasters, fileName: file.name, pagePtSizes };
   }
   const raster = await rasterImage(file);
-  const result = await runDetectionOnDocument(file);
+  const result = await runDetectionOnDocument(raster.canvas, { face, qr });
   return {
     result,
     rasters: [raster],
@@ -103,15 +115,22 @@ export function RedactorApp() {
     }
   };
 
+  const busy = status === 'running' || status === 'downloading';
   const totalDetections =
     state?.result.pages.reduce((n, p) => n + p.detections.length, 0) ?? 0;
 
   return (
     <section style={{ marginTop: 24 }}>
-      <DropZone
-        onFile={onFile}
-        disabled={status === 'running' || status === 'downloading'}
-      />
+      <div className="hero-mobile">
+        <CameraCapture onFile={onFile} disabled={busy} />
+        <div style={{ marginTop: 12 }}>
+          <DropZone onFile={onFile} disabled={busy} />
+        </div>
+      </div>
+      <div className="hero-desktop">
+        <DropZone onFile={onFile} disabled={busy} />
+      </div>
+
       <div style={{ marginTop: 16, fontSize: 14, color: 'var(--muted)' }}>
         {status === 'idle' && 'Choose a file to begin.'}
         {status === 'running' && `Scanning ${state?.fileName ?? ''}…`}

@@ -18,3 +18,11 @@ html, body {
 }
 
 a { color: var(--accent); }
+
+.hero-mobile { display: none; }
+.hero-desktop { display: block; }
+
+@media (max-width: 767px) {
+  .hero-mobile { display: block; }
+  .hero-desktop { display: none; }
+}
