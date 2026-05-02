@@ -43,6 +43,17 @@ export interface DetectionResult {
   elapsedMs: number;
 }
 
+export interface PageDetectionResult extends DetectionResult {
+  pageIndex: number;
+}
+
+export interface DocumentDetectionResult {
+  pages: PageDetectionResult[];
+  totalElapsedMs: number;
+  sourceKind: 'image' | 'pdf';
+  pageSizesPt?: readonly { width: number; height: number }[];
+}
+
 export function unionBbox(a: BoundingBox, b: BoundingBox): BoundingBox {
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
