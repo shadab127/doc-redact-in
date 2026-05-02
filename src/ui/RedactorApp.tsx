@@ -10,6 +10,13 @@
 import { useState } from 'react';
 import { DropZone } from './DropZone';
 import { CameraCapture } from './CameraCapture';
+import {
+  DetectionToggleList,
+  defaultEnabledMap,
+  filterEnabledDetections,
+  toggleKeyString,
+  type ToggleKey,
+} from './DetectionToggleList';
 import { redactedFilename, triggerDownload } from './download';
 import {
   runDetectionOnDocument,
@@ -78,6 +85,7 @@ export function RedactorApp() {
   const [status, setStatus] = useState<Status>('idle');
   const [state, setState] = useState<RedactionState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map());
 
   const onFile = async (file: File) => {
     setStatus('running');
@@ -86,6 +94,7 @@ export function RedactorApp() {
     try {
       const next = await processDocument(file);
       setState(next);
+      setEnabled(defaultEnabledMap(next.result.pages));
       setStatus('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -93,17 +102,26 @@ export function RedactorApp() {
     }
   };
 
+  const onToggle = (k: ToggleKey, value: boolean) => {
+    setEnabled((prev) => {
+      const next = new Map(prev);
+      next.set(toggleKeyString(k), value);
+      return next;
+    });
+  };
+
   const download = async () => {
     if (!state) return;
     setStatus('downloading');
     try {
+      const filteredPerPage = filterEnabledDetections(state.result.pages, enabled);
       const pages = state.rasters.map((r, idx) => {
         const pt = state.pagePtSizes[idx] ?? { width: r.width * 0.75, height: r.height * 0.75 };
         return {
           canvas: r.canvas,
           widthPt: pt.width,
           heightPt: pt.height,
-          detections: state.result.pages[idx]?.detections ?? [],
+          detections: filteredPerPage[idx] ?? [],
         };
       });
       const pdfBytes = await flattenToImageOnlyPdf(pages);
@@ -118,6 +136,16 @@ export function RedactorApp() {
   const busy = status === 'running' || status === 'downloading';
   const totalDetections =
     state?.result.pages.reduce((n, p) => n + p.detections.length, 0) ?? 0;
+  const enabledCount =
+    state?.result.pages.reduce(
+      (n, p) =>
+        n +
+        p.detections.reduce((m, _, i) => {
+          const on = enabled.get(toggleKeyString({ pageIndex: p.pageIndex, detectionIndex: i }));
+          return m + (on ? 1 : 0);
+        }, 0),
+      0
+    ) ?? 0;
 
   return (
     <section style={{ marginTop: 24 }}>
@@ -141,7 +169,12 @@ export function RedactorApp() {
             Found <strong>{totalDetections}</strong> detection
             {totalDetections === 1 ? '' : 's'} across {state.result.pages.length} page
             {state.result.pages.length === 1 ? '' : 's'} in {state.result.totalElapsedMs} ms.
-            <div style={{ marginTop: 12 }}>
+            <DetectionToggleList
+              pages={state.result.pages}
+              enabled={enabled}
+              onToggle={onToggle}
+            />
+            <div style={{ marginTop: 16 }}>
               <button
                 onClick={download}
                 style={{
@@ -155,10 +188,11 @@ export function RedactorApp() {
                   cursor: 'pointer',
                 }}
               >
-                Download redacted PDF
+                Download redacted PDF ({enabledCount} masked)
               </button>
               <div style={{ fontSize: 12, marginTop: 6 }}>
-                Image-only output — no searchable text, larger file. Verify before sharing.
+                Image-only output — no searchable text, larger file. Verify before
+                sharing. You are responsible for the final output.
               </div>
             </div>
           </>

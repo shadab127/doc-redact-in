@@ -7,6 +7,8 @@
  */
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Footer } from '@/src/ui/Footer';
+import { UnsupportedBrowserGuard } from '@/src/ui/UnsupportedBrowserGuard';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,10 +17,23 @@ export const metadata: Metadata = {
     'Client-side, mobile-first redactor for Indian ID documents. Your browser processes the file. Nothing leaves your device.',
 };
 
+const CF_ANALYTICS_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <UnsupportedBrowserGuard />
+        {children}
+        <Footer />
+        {CF_ANALYTICS_TOKEN && (
+          <script
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={`{"token":"${CF_ANALYTICS_TOKEN}"}`}
+          />
+        )}
+      </body>
     </html>
   );
 }

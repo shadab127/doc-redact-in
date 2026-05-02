@@ -6,8 +6,10 @@
   "description": "Client-side, mobile-first, open-source redactor for Indian ID documents (Aadhaar, PAN, passport, QR, faces).",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/build-schema.mjs",
     "build": "next build",
     "start": "next start",
+    "schema": "node scripts/build-schema.mjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
