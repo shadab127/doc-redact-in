@@ -34,6 +34,14 @@ const TESSERACT_LANG_URL =
 const TESSERACT_LANG_SHA256 =
   '45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91';
 
+// MediaPipe BlazeFace short-range model (float16, ~225 KB). Hosted by Google
+// on storage.googleapis.com. We download once, pin by hash, and vendor under
+// public/vendor/mediapipe/ so runtime never contacts Google.
+const MEDIAPIPE_FACE_MODEL_URL =
+  'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+const MEDIAPIPE_FACE_MODEL_SHA256 =
+  'b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f';
+
 async function ensureDir(dir) {
   await mkdir(dir, { recursive: true });
 }
@@ -134,6 +142,36 @@ async function main() {
   );
   console.log(
     `  tesseract-lang/eng.traineddata.gz -> ${lang.action}${lang.sha256 ? ` (sha256=${lang.sha256})` : ''}`
+  );
+
+  // MediaPipe vision runtime + BlazeFace model. Replaces @vladmandic/face-api,
+  // which used eval() internally and violated our strict CSP. MediaPipe is
+  // pure WASM + tflite interpreter; no eval.
+  //
+  // We only need the SIMD variant of the runtime; the non-SIMD fallback is
+  // kept so devices without WebAssembly SIMD can still run face detection.
+  // The "module_internal" variant is the ES-module build we don't use.
+  const mpFiles = [
+    'vision_wasm_internal.wasm',
+    'vision_wasm_internal.js',
+    'vision_wasm_nosimd_internal.wasm',
+    'vision_wasm_nosimd_internal.js',
+  ];
+  for (const f of mpFiles) {
+    const r = await copyNodeModule(
+      `@mediapipe/tasks-vision/wasm/${f}`,
+      `mediapipe/${f}`
+    );
+    console.log(`  mediapipe/${f} -> ${r.action}`);
+  }
+
+  const mpModel = await fetchWithHashCheck(
+    MEDIAPIPE_FACE_MODEL_URL,
+    path.join(VENDOR, 'mediapipe', 'blaze_face_short_range.tflite'),
+    MEDIAPIPE_FACE_MODEL_SHA256
+  );
+  console.log(
+    `  mediapipe/blaze_face_short_range.tflite -> ${mpModel.action}${mpModel.sha256 ? ` (sha256=${mpModel.sha256})` : ''}`
   );
 
   // Surface the total footprint so regressions (accidental bloat) are visible

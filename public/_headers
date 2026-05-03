@@ -13,11 +13,10 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentialless
 
-# Model weights + wasm bundles can be cached aggressively — they are hashed by
-# filename on the Next.js build output, and the tiny-face-detector weights are
-# versioned with the @vladmandic/face-api package.
+# Model weights + wasm bundles can be cached aggressively — they are pinned to
+# specific versions in scripts/prepare-vendor-assets.mjs and checked into git.
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
 
-/models/*
+/vendor/*
   Cache-Control: public, max-age=2592000

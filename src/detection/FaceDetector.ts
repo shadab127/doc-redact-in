@@ -12,99 +12,126 @@ export interface FaceDetectorRunner {
 }
 
 export interface FaceDetectorOptions {
-  modelsUrl?: string;
+  /**
+   * Base path for MediaPipe vision WASM assets (vision_wasm_internal.js/.wasm,
+   * vision_wasm_nosimd_internal.js/.wasm). Loaded from our own origin so the
+   * strict CSP's connect-src 'self' is satisfied.
+   */
+  wasmBasePath?: string;
+  /** Path to the BlazeFace short-range tflite model, same-origin. */
+  modelAssetPath?: string;
+  /** Score threshold below which detections are dropped. */
   minConfidence?: number;
-  inputSize?: number;
 }
 
-interface FaceApiBox {
-  x: number;
-  y: number;
+// MediaPipe-native shapes (subset we use). Keeping these local avoids having
+// to plumb the full `@mediapipe/tasks-vision` type graph through our code;
+// we only care about the bounding box + category score.
+interface MpBoundingBox {
+  originX: number;
+  originY: number;
   width: number;
   height: number;
 }
 
-interface FaceApiDetection {
-  box: FaceApiBox;
+interface MpCategory {
   score: number;
 }
 
-interface TinyFaceDetectorOptions {
-  new (opts: { inputSize: number; scoreThreshold: number }): unknown;
+interface MpDetection {
+  boundingBox?: MpBoundingBox;
+  categories: MpCategory[];
 }
 
-interface FaceApiNets {
-  tinyFaceDetector: {
-    loadFromUri(url: string): Promise<void>;
-    isLoaded: boolean;
-  };
+interface MpDetectionResult {
+  detections: MpDetection[];
 }
 
-interface FaceApiModule {
-  nets: FaceApiNets;
-  TinyFaceDetectorOptions: TinyFaceDetectorOptions;
-  detectAllFaces(
-    input: HTMLCanvasElement | ImageBitmap,
-    options: unknown
-  ): Promise<FaceApiDetection[]>;
+interface MpWasmFileset {
+  // Opaque to us.
+  readonly __mediaPipeWasmFileset?: never;
 }
 
-async function loadFaceApi(): Promise<FaceApiModule> {
-  return (await import('@vladmandic/face-api')) as unknown as FaceApiModule;
+interface MpFaceDetectorStatic {
+  createFromOptions(
+    wasmFileset: MpWasmFileset,
+    opts: {
+      baseOptions: { modelAssetPath: string };
+      runningMode: 'IMAGE' | 'VIDEO';
+      minDetectionConfidence?: number;
+    }
+  ): Promise<MpFaceDetector>;
+}
+
+interface MpFaceDetector {
+  detect(image: HTMLCanvasElement | ImageBitmap | HTMLImageElement): MpDetectionResult;
+}
+
+interface MpFilesetResolver {
+  forVisionTasks(basePath: string): Promise<MpWasmFileset>;
+}
+
+interface MpModule {
+  FaceDetector: MpFaceDetectorStatic;
+  FilesetResolver: MpFilesetResolver;
+}
+
+async function loadMediaPipe(): Promise<MpModule> {
+  return (await import('@mediapipe/tasks-vision')) as unknown as MpModule;
 }
 
 const DEFAULT_OPTS: Required<FaceDetectorOptions> = {
-  modelsUrl: '/models',
-  minConfidence: 0.6,
-  inputSize: 416,
+  wasmBasePath: '/vendor/mediapipe',
+  modelAssetPath: '/vendor/mediapipe/blaze_face_short_range.tflite',
+  minConfidence: 0.5,
 };
 
 export function createFaceDetectorRunner(
   opts: FaceDetectorOptions = {}
 ): FaceDetectorRunner {
-  const { modelsUrl, minConfidence, inputSize } = { ...DEFAULT_OPTS, ...opts };
-  let loaded: Promise<FaceApiModule> | null = null;
+  const { wasmBasePath, modelAssetPath, minConfidence } = {
+    ...DEFAULT_OPTS,
+    ...opts,
+  };
+  let detectorPromise: Promise<MpFaceDetector> | null = null;
 
-  const getFaceApi = async (): Promise<FaceApiModule> => {
-    if (!loaded) {
-      loaded = (async () => {
-        const mod = await loadFaceApi();
-        if (!mod.nets.tinyFaceDetector.isLoaded) {
-          await mod.nets.tinyFaceDetector.loadFromUri(modelsUrl);
-        }
-        return mod;
+  const getDetector = (): Promise<MpFaceDetector> => {
+    if (!detectorPromise) {
+      detectorPromise = (async () => {
+        const mp = await loadMediaPipe();
+        const fileset = await mp.FilesetResolver.forVisionTasks(wasmBasePath);
+        return mp.FaceDetector.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath },
+          runningMode: 'IMAGE',
+          minDetectionConfidence: minConfidence,
+        });
       })();
     }
-    return loaded;
+    return detectorPromise;
   };
 
   return {
     async detect(canvas) {
-      const api = await getFaceApi();
-      const raw = await api.detectAllFaces(
-        canvas,
-        new (api.TinyFaceDetectorOptions as unknown as new (
-          o: { inputSize: number; scoreThreshold: number }
-        ) => unknown)({
-          inputSize,
-          scoreThreshold: minConfidence,
-        })
-      );
-      return raw
-        .filter((d) => d.score >= minConfidence)
+      const detector = await getDetector();
+      // BlazeFace short-range expects small input and does its own resize.
+      // Pass the canvas directly; MediaPipe converts via GPU when available.
+      const result = detector.detect(canvas);
+      return result.detections
+        .filter((d) => !!d.boundingBox && (d.categories[0]?.score ?? 0) >= minConfidence)
         .map<Detection>((d) => {
+          const b = d.boundingBox!;
           const bbox = {
-            x: Math.max(0, Math.round(d.box.x)),
-            y: Math.max(0, Math.round(d.box.y)),
-            w: Math.round(d.box.width),
-            h: Math.round(d.box.height),
+            x: Math.max(0, Math.round(b.originX)),
+            y: Math.max(0, Math.round(b.originY)),
+            w: Math.round(b.width),
+            h: Math.round(b.height),
           };
           return {
             kind: 'face',
             bbox,
             maskBbox: bbox,
             value: 'face',
-            confidence: d.score,
+            confidence: d.categories[0]?.score ?? 0,
           };
         });
     },
