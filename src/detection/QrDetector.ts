@@ -31,8 +31,22 @@ interface ZxingModule {
   ): Promise<ZxingResult[]>;
 }
 
+interface ZxingOverrideApi {
+  setZXingModuleOverrides(overrides: {
+    locateFile: (p: string, prefix: string) => string;
+  }): void;
+}
+
 async function loadZxing(): Promise<ZxingModule> {
-  return (await import('zxing-wasm')) as unknown as ZxingModule;
+  const mod = (await import('zxing-wasm')) as unknown as ZxingModule &
+    ZxingOverrideApi;
+  // Redirect the lazy WASM fetch from the upstream jsdelivr CDN to our own
+  // origin. Required to keep CSP's connect-src 'self' intact and to preserve
+  // the "nothing leaves your device" privacy invariant.
+  mod.setZXingModuleOverrides({
+    locateFile: (filePath) => `/vendor/zxing/${filePath}`,
+  });
+  return mod;
 }
 
 // Legacy UIDAI QRs carry XML starting with <PrintLetterBarcodeData>.

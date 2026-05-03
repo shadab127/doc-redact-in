@@ -36,20 +36,43 @@ interface TesseractLikeWorker {
   terminate(): Promise<void>;
 }
 
+interface TesseractWorkerOptions {
+  workerPath?: string;
+  corePath?: string;
+  langPath?: string;
+  workerBlobURL?: boolean;
+}
+
 interface TesseractModule {
-  createWorker(lang: string, oem?: number): Promise<TesseractLikeWorker>;
+  createWorker(
+    lang: string,
+    oem?: number,
+    options?: TesseractWorkerOptions
+  ): Promise<TesseractLikeWorker>;
 }
 
 async function loadTesseract(): Promise<TesseractModule> {
   return (await import('tesseract.js')) as unknown as TesseractModule;
 }
 
+// Same-origin paths for the three assets Tesseract.js would otherwise pull
+// from cdn.jsdelivr.net. These files are vendored into public/vendor/ by
+// scripts/prepare-vendor-assets.mjs so that the redaction flow never makes
+// a cross-origin request (required by our CSP and the core privacy claim).
+const TESSERACT_PATHS: TesseractWorkerOptions = {
+  workerPath: '/vendor/tesseract/worker.min.js',
+  corePath: '/vendor/tesseract-core',
+  langPath: '/vendor/tesseract-lang',
+};
+
 export function createOCRRunner(): OCRRunner {
   let workerPromise: Promise<TesseractLikeWorker> | null = null;
 
   const getWorker = (): Promise<TesseractLikeWorker> => {
     if (!workerPromise) {
-      workerPromise = loadTesseract().then((t) => t.createWorker('eng', 1));
+      workerPromise = loadTesseract().then((t) =>
+        t.createWorker('eng', 1, TESSERACT_PATHS)
+      );
     }
     return workerPromise;
   };
