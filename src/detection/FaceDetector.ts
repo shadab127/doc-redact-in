@@ -83,6 +83,17 @@ async function loadMediaPipe(): Promise<MpModule> {
 const DEFAULT_OPTS: Required<FaceDetectorOptions> = {
   wasmBasePath: '/vendor/mediapipe',
   modelAssetPath: '/vendor/mediapipe/blaze_face_short_range.tflite',
+  // Holding at BlazeFace's default 0.5. We trialled 0.3 to catch more small
+  // Aadhaar-card face photos; that improved recall on plain phone photos but
+  // generated confident false positives on text patterns inside UIDAI
+  // e-Aadhaar PDFs (blocks of text scored as faces) while the actually
+  // printed face in the same PDF still wasn't detected. For a privacy tool,
+  // a detection the user sees and trusts that isn't a real face is worse
+  // than no detection at all — it produces false confidence. The recall
+  // gap on small printed faces needs a different fix: either the full-range
+  // BlazeFace model, higher rasterization scale for e-Aadhaar specifically,
+  // or a text-region overlap filter that rejects face detections sitting
+  // on OCR tokens. Tracked separately.
   minConfidence: 0.5,
 };
 
