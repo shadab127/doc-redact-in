@@ -92,8 +92,3 @@
 5. CSP feasibility: all WASM libraries work under strict CSP with `wasm-unsafe-eval` only
 6. Cloudflare Pages + Next.js static export compatibility confirmed
 7. `docredact.in` domain available; if not, rename decision made before Weekend 1
-
-## Related / Parked Ideas
-- Original parked analysis: `../parked-ideas/doc-redact-in.md`
-- Adjacent brand extensions (post-MVP, not scoped): DocSplit.in, KYCSafe.in — client-side utility tools under same privacy-first brand
-- Other hobby-projects parked: `~/toast/hobby-projects/parked-ideas/` — read before re-proposing features
