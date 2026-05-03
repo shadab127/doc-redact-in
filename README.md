@@ -2,7 +2,7 @@
 
 Client-side, mobile-first, open-source web tool for redacting Aadhaar, PAN, passport, and other Indian ID documents. Everything runs in the browser — no file ever touches the server.
 
-**Status:** MVP built (W1–W5 of RFC v2). 127 unit tests green. Next step: domain registration + Cloudflare Pages deploy + launch sequence (r/developersIndia → Show HN → Product Hunt India). Licensed under AGPL-3.0-or-later.
+**Status:** MVP built (W1–W5 of RFC v2). Full unit-test coverage on detectors, masking, forms, and UI. Next step: domain registration + Cloudflare Pages deploy + public launch. Licensed under AGPL-3.0-or-later.
 
 ## Verify the privacy claim yourself
 
@@ -94,10 +94,8 @@ Cost at MVP: ~₹600/year (domain only). Everything else on free tiers.
 - **W4:** Flagship SEO page (`/mask-aadhaar-online`) + privacy + terms + how-it-works + CSP lockdown + waitlist + contact + domain + analytics
 - **W5:** Polish + multi-page preview + GitHub repo public + AGPL headers
 
-**Launch phase (3 sequenced weeks):**
-- **LW1:** Soft launch on r/developersIndia
-- **LW2:** Show HN after bug fixes
-- **LW3:** Product Hunt India + r/india + r/indianews
+**Launch phase:**
+Gradual rollout across developer and consumer communities, iterating on feedback between each step.
 
 Deliberate v1 omissions: no Pro tier, no batch, no accounts, no payments, no API, no PWA, no regional languages, no scenario presets. Consumer is 100% free. Revenue arrives via B2B conversations in month 3+.
 
@@ -118,7 +116,7 @@ DocRedact.in is licensed under the [GNU Affero General Public License v3.0](LICE
 
 ## Contact
 
-- Bugs / features: [GitHub Issues](https://github.com/shadabkhan/doc-redact-in/issues)
+- Bugs / features: [GitHub Issues](https://github.com/shadab127/doc-redact-in/issues)
 - Private feedback: `hello@docredact.in`
 
 ## Related parked ideas

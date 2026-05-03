@@ -11,7 +11,7 @@
 - Positioning: "Privacy-first redaction — nothing uploaded, everything in your browser, fully open source"
 - Primary wedge: India-specific auto-detection that generic tools (iLovePDF, Smallpdf, Adobe) don't have
 - Consumer tier is free forever; revenue comes from B2B API tier (HR tech, fintech KYC) post-MVP
-- Brand moat: "the iLovePDF for people who don't trust iLovePDF" — launch pad for adjacent client-side utility tools
+- Brand moat: radical-transparency, client-side-only redaction — a launch pad for adjacent privacy-first utility tools
 
 ## Constraints
 - **~₹600/year budget (domain only)** — everything else runs on free tiers
@@ -43,7 +43,7 @@
 | 17 | Download filename | `[original]_redacted.pdf` |
 | 18 | Contact | GitHub Issues + `hello@docredact.in` via Cloudflare Email Routing |
 | 19 | Privacy policy | Plain-English custom, matches radical-transparency brand |
-| 20 | Launch | Sequential over 3 weeks: r/developersIndia → Show HN → Product Hunt India + r/india |
+| 20 | Launch | Gradual 3-week rollout across developer and consumer communities, iterating on feedback between each step |
 
 ## Tech Decisions
 - Frontend: Next.js 14 (App Router, static export)

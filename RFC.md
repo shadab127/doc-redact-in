@@ -498,15 +498,17 @@ doc-redact-in/
 | **W2**  | PDF in/out + flatten             | pdf.js rasterization, pdf-lib flattener, image preprocessing pipeline, canvas masking, download flow with `_redacted.pdf` naming |
 | **W3**  | Face + QR + MRZ + mobile camera  | face-api.js lazy-load + Gaussian blur, zxing-wasm QR detection, passport MRZ detector, mobile camera-capture flow with hero CTA |
 | **W4**  | Trust UX + flagship page + infra | Flagship `/mask-aadhaar-online` (~2,000 words), root page, `/how-it-works`, `/privacy` (plain-English), `/terms`, `/how-it-works`, CSP lockdown, Cloudflare Web Analytics wired, `/api-waitlist`, `/contact`, Cloudflare Email Routing (`hello@docredact.in`), no-outbound-network CI test, domain registered & pointed |
-| **W5**  | Polish + soft launch             | Detection toggle UI polish, multi-page preview with prev/next, unsupported-browser page, iOS Safari smoke test, GitHub repo public, AGPL headers on source files, soft launch on r/developersIndia |
+| **W5**  | Polish + soft launch             | Detection toggle UI polish, multi-page preview with prev/next, unsupported-browser page, iOS Safari smoke test, GitHub repo public, AGPL headers on source files, initial launch to a forgiving technical audience |
 
 ### 12.2 Launch Phase (3 weeks, sequenced)
 
-| Week        | Channel                                  | Goal                                                  |
-|-------------|------------------------------------------|-------------------------------------------------------|
-| **Launch W1** | r/developersIndia (soft)               | Find bugs with a forgiving technical audience; iterate fixes |
-| **Launch W2** | Show HN                                | Polished technical launch after W1 fixes              |
-| **Launch W3** | Product Hunt India + r/india + r/indianews | Broader consumer reach after HN validation      |
+Gradual rollout across developer and consumer communities. Each step uses feedback from the previous one before widening the audience.
+
+| Week          | Audience                            | Goal                                                                  |
+|---------------|-------------------------------------|-----------------------------------------------------------------------|
+| **Launch W1** | Small technical community (soft)    | Find bugs with a forgiving technical audience; iterate fixes          |
+| **Launch W2** | Broader technical community         | Polished technical launch after W1 fixes                              |
+| **Launch W3** | Consumer / generalist communities   | Broader consumer reach after W2 validation                            |
 
 ### 12.3 Post-MVP Sequencing (Not in scope)
 
@@ -606,7 +608,7 @@ To be rendered at `/privacy`. Approximate final copy:
 
 ### 15.1 Channels
 
-- **GitHub Issues** — `github.com/shadabkhan/doc-redact-in/issues` for bugs, feature requests, questions. Public, structured. Preferred for technical users.
+- **GitHub Issues** — `github.com/shadab127/doc-redact-in/issues` for bugs, feature requests, questions. Public, structured. Preferred for technical users.
 - **Email** — `hello@docredact.in` via Cloudflare Email Routing (free), forwards to personal inbox. Private channel for non-technical users or sensitive feedback.
 
 ### 15.2 Response SLA
