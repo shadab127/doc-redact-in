@@ -198,7 +198,11 @@ export async function runDetectionOnDocument(
   opts: RunDocumentOptions = {}
 ): Promise<DocumentDetectionResult> {
   const runners = resolveRunners(opts);
-  const scale = opts.rasterizeScale ?? 2;
+  // scale=3 ≈ 216 DPI from the PDF's 72 DPI base; Tesseract's published
+  // accuracy numbers assume ≥200 DPI input. At scale 2 we saw the OCR miss
+  // Aadhaar numbers on otherwise-clean UIDAI e-Aadhaar PDFs; scale 3 closes
+  // that gap at ~2× the per-page rasterization cost.
+  const scale = opts.rasterizeScale ?? 3;
 
   if (isPdfBlob(input)) {
     if (!opts.pdfPipeline) {
