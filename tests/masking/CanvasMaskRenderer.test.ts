@@ -8,7 +8,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   renderMasks,
-  FACE_BLUR_SIGMA_PX,
   _internal,
   type RenderableCanvas,
 } from '@/src/masking/CanvasMaskRenderer';
@@ -77,11 +76,13 @@ describe('renderMasks', () => {
     expect(drawImageCalls).toEqual([]);
   });
 
-  it('applies blur filter for face detections', () => {
-    const { canvas, filters, drawImageCalls } = mockCanvas();
+  it('draws a solid rectangle for face (expanded 15%)', () => {
+    const { canvas, fills, filters, drawImageCalls } = mockCanvas();
+    // 100x100 face -> dx=dy=15, so expanded box is 385,285,130,130
     renderMasks(canvas, [det('face', { x: 400, y: 300, w: 100, h: 100 })]);
-    expect(filters.some((f) => f === `blur(${FACE_BLUR_SIGMA_PX}px)`)).toBe(true);
-    expect(drawImageCalls).toHaveLength(1);
+    expect(fills).toEqual([[385, 285, 130, 130]]);
+    expect(drawImageCalls).toEqual([]);
+    expect(filters.filter((f) => f.startsWith('blur'))).toEqual([]);
   });
 
   it('clamps padded boxes to the canvas bounds', () => {

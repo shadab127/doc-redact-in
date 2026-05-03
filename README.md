@@ -40,7 +40,7 @@ Node ≥ 20.
 
 ## What it does
 
-Drop an image or PDF — or tap "Take Photo" on mobile — then auto-detect Aadhaar number, PAN, passport MRZ, UIDAI QR, photograph → mask first 8 Aadhaar digits, blur photo, redact QR → download a clean **image-only PDF** (no searchable text layer, so masked content can't be extracted with `pdftotext`).
+Drop an image or PDF — or tap "Take Photo" on mobile — then auto-detect Aadhaar number, PAN, passport MRZ, UIDAI QR, photograph → mask first 8 Aadhaar digits, cover the face photo with a black rectangle, redact QR → download a clean **image-only PDF** (no searchable text layer, so masked content can't be extracted with `pdftotext`).
 
 **Positioning:** "UIDAI's masked-Aadhaar download is a 5-step OTP portal. This is one tap on your phone, free, nothing uploaded, and the code is public."
 

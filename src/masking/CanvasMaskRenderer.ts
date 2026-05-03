@@ -7,13 +7,17 @@
  */
 import type { BoundingBox, Detection, DetectionKind } from '@/src/detection/types';
 
-export const FACE_BLUR_SIGMA_PX = 30;
-
+// Faces are masked with a solid black rectangle (same treatment as other PII),
+// not a blur. A blur is reversible in principle — known-σ deblurring and face
+// super-resolution can recover usable features from σ=30 Gaussian. A solid
+// fill is information-theoretically irreversible: the masked pixels contain
+// zero face data. See RFC §5.1 for the full rationale.
 const SOLID_KINDS: ReadonlySet<DetectionKind> = new Set<DetectionKind>([
   'aadhaar',
   'pan',
   'passport_mrz',
   'uidai_qr',
+  'face',
 ]);
 
 export interface MaskRenderStyle {
@@ -65,50 +69,30 @@ export function renderMasks(
   if (!ctx) throw new Error('2D context unavailable');
   const style = opts.style ?? DEFAULT_STYLE;
 
-  // Face blurs run first so the blur samples original pixels, not pixels
-  // already covered by solid masks that happen to abut the face.
-  for (const d of detections) {
-    if (d.kind === 'face') drawFaceBlur(ctx, canvas, d.maskBbox, style);
-  }
-
   for (const d of detections) {
     if (!SOLID_KINDS.has(d.kind)) continue;
-    const padded =
-      d.kind === 'uidai_qr'
-        ? padBbox(d.maskBbox, style.qrPaddingPx, canvas.width, canvas.height)
-        : d.maskBbox;
+    const padded = paddedBbox(d, style, canvas.width, canvas.height);
     ctx.fillStyle = style.solidColor;
     ctx.fillRect(padded.x, padded.y, padded.w, padded.h);
   }
   // 'other_qr' is surfaced but never auto-masked (RFC §4.7).
 }
 
-function drawFaceBlur(
-  ctx: CanvasRenderingContext2D,
-  canvas: RenderableCanvas,
-  bbox: BoundingBox,
-  style: MaskRenderStyle
-): void {
-  const expanded = expandFraction(bbox, style.facePaddingFraction, canvas.width, canvas.height);
-  const prevFilter = ctx.filter;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(expanded.x, expanded.y, expanded.w, expanded.h);
-  ctx.clip();
-  ctx.filter = `blur(${FACE_BLUR_SIGMA_PX}px)`;
-  ctx.drawImage(
-    canvas as unknown as CanvasImageSource,
-    expanded.x,
-    expanded.y,
-    expanded.w,
-    expanded.h,
-    expanded.x,
-    expanded.y,
-    expanded.w,
-    expanded.h
-  );
-  ctx.restore();
-  ctx.filter = prevFilter;
+function paddedBbox(
+  d: Detection,
+  style: MaskRenderStyle,
+  maxW: number,
+  maxH: number
+): BoundingBox {
+  if (d.kind === 'uidai_qr') {
+    return padBbox(d.maskBbox, style.qrPaddingPx, maxW, maxH);
+  }
+  // Face detector bbox tightly tracks the detected face; expand slightly to
+  // catch hair, chin, and ears that the model sometimes excludes.
+  if (d.kind === 'face') {
+    return expandFraction(d.maskBbox, style.facePaddingFraction, maxW, maxH);
+  }
+  return d.maskBbox;
 }
 
 export const _internal = { padBbox, expandFraction, SOLID_KINDS };

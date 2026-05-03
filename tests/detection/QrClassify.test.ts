@@ -23,6 +23,7 @@ vi.mock('zxing-wasm', () => {
       queue.push(...results);
     },
     readBarcodesFromImageData: async () => queue.slice(),
+    setZXingModuleOverrides: () => {},
   };
 });
 

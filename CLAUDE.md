@@ -33,7 +33,7 @@
 | 7 | SEO pages | 1 flagship page at launch (`/mask-aadhaar-online`); add others in month 2 based on GSC data |
 | 8 | B2B waitlist form | Email + company + use case dropdown |
 | 9 | Verification flow | Toggle list IS the verification (resolved via Q below) |
-| 10 | Mask styles | Black rectangle (Aadhaar/PAN/MRZ/QR) + Gaussian blur σ=30 (faces). Fixed, no user choice. |
+| 10 | Mask styles | Black rectangle for all PII (Aadhaar/PAN/MRZ/QR/face). Fixed, no user choice. Originally σ=30 blur for faces; revised after smoke testing because blur is reversible (known-σ deblurring + face super-resolution attacks). |
 | 11 | File limit | 20MB hard cap |
 | 12 | Error tracking | None in MVP |
 | 13 | Browser support | Modern WASM-capable browsers only; unsupported-browser page for rest |

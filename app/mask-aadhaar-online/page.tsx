@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Mask Aadhaar Online — Browser-Only, Open Source',
     description:
-      'Your browser masks the first 8 digits of your Aadhaar, blurs the photo, and gives you a clean PDF. Nothing leaves your device.',
+      'Your browser masks the first 8 digits of your Aadhaar, covers the photo, and gives you a clean PDF. Nothing leaves your device.',
     type: 'article',
   },
 };
@@ -43,8 +43,9 @@ export default function MaskAadhaarOnlinePage() {
 
       <h1 style={{ fontSize: 32, margin: '24px 0 8px' }}>Mask Aadhaar online</h1>
       <p style={{ fontSize: 18, color: 'var(--muted)', marginTop: 0 }}>
-        Your browser redacts the first 8 digits of your Aadhaar, blurs the photo,
-        and hides the UIDAI QR. Nothing uploaded. Nothing stored. Free forever.
+        Your browser redacts the first 8 digits of your Aadhaar, covers the
+        photo, and hides the UIDAI QR. Nothing uploaded. Nothing stored. Free
+        forever.
       </p>
 
       <RedactorApp />
@@ -124,7 +125,10 @@ export default function MaskAadhaarOnlinePage() {
         <p>
           The detected regions are drawn onto a canvas in your browser as solid
           black rectangles over the first 8 Aadhaar digits, over the PAN, over
-          the UIDAI QR, and as a Gaussian blur over the face photograph. The
+          the UIDAI QR, and over the face photograph. (We originally used a
+          Gaussian blur on the face but switched to a solid rectangle — blur
+          can be reversed with known-σ deblurring and modern face
+          super-resolution; a solid rectangle cannot.) The
           page image and the mask layer are then flattened together and written
           into a new image-only PDF in your browser, again using an open-source
           library. The flattening step is what makes the output safe to email

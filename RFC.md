@@ -221,7 +221,7 @@ face-api.js TinyFaceDetector model (~200KB, loaded lazily on first image with li
 1. Run on original RGB image
 2. Detections with confidence < 0.6 discarded
 3. Bounding box expanded by 15% (ensure hair + ears are covered on passport photos)
-4. Applied mask: **Gaussian blur σ=30px** — preserves "photo was here" context; blur at σ=30 is practically irreversible
+4. Applied mask: **solid black rectangle** — originally specified as σ=30 Gaussian blur; revised after smoke testing revealed the blur left recognizable face shape and skin-tone cues, which known-σ deblurring and face super-resolution (PULSE/GFPGAN/CodeFormer class) can exploit. Solid fill is irreversible by construction.
 5. User toggle per detection: some scenarios legitimately need the face visible (e.g., landlord verification)
 
 ### 4.7 UIDAI QR Detector
@@ -250,13 +250,13 @@ Overlapping detections are merged via IoU threshold 0.3. Final mask layer is fla
 | Full PAN | Solid black rectangle | Consistency |
 | Passport MRZ | Solid black rectangle | Standard |
 | UIDAI QR | Solid black rectangle | Blurred QRs can still be decoded; solid only |
-| Face | Gaussian blur σ=30 | Preserves "photo was here" context; irreversible in practice |
+| Face | Solid black rectangle (expanded 15%) | Originally σ=30 blur; revised because blur is reversible (known-σ deblurring + face super-resolution). Solid fill is irreversible by construction. |
 
 ### 5.2 Image Output Path
 
 1. Create a canvas matching source dimensions
 2. Draw source image
-3. For each masked region, draw filled black rectangle OR apply Gaussian blur (faces)
+3. For each masked region, draw a filled black rectangle (all PII types)
 4. Export as JPEG (quality 0.85) or PNG
 
 ### 5.3 PDF Output Path — Flatten-First (Universal)

@@ -47,8 +47,7 @@ export default function HowItWorksPage() {
   │     └── Passport MRZ (ICAO 9303, Indian country code)
   ├── Review toggles → you choose what actually masks
   ├── Canvas mask render:
-  │     ├── Solid black rectangles for text-like regions + QRs
-  │     └── Gaussian blur σ=30 for faces
+  │     └── Solid black rectangles for every masked region (text, QR, face)
   └── pdf-lib: JPEG embed each flattened page → image-only PDF → download
 
 No network hop between any of these steps carries document data.`}
