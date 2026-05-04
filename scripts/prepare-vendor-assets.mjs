@@ -34,13 +34,26 @@ const TESSERACT_LANG_URL =
 const TESSERACT_LANG_SHA256 =
   '45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91';
 
-// MediaPipe BlazeFace short-range model (float16, ~225 KB). Hosted by Google
-// on storage.googleapis.com. We download once, pin by hash, and vendor under
-// public/vendor/mediapipe/ so runtime never contacts Google.
-const MEDIAPIPE_FACE_MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
-const MEDIAPIPE_FACE_MODEL_SHA256 =
-  'b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f';
+// MediaPipe BlazeFace models (float16). Hosted by Google on
+// storage.googleapis.com. We download once, pin each by hash, and vendor
+// under public/vendor/mediapipe/ so runtime never contacts Google.
+//
+// Both variants are loaded at runtime because each catches real-world
+// Aadhaar face photos the other misses (short-range for selfie-sized,
+// full-range for smaller printed faces on ID cards). See FaceDetector.ts
+// DEFAULT_OPTS for the measured union rationale.
+const MEDIAPIPE_FACE_MODELS = [
+  {
+    url: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+    file: 'blaze_face_short_range.tflite',
+    sha256: 'b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f',
+  },
+  {
+    url: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite',
+    file: 'blaze_face_full_range.tflite',
+    sha256: '3698b18f063835bc609069ef052228fbe86d9c9a6dc8dcb7c7c2d69aed2b181b',
+  },
+];
 
 async function ensureDir(dir) {
   await mkdir(dir, { recursive: true });
@@ -165,14 +178,16 @@ async function main() {
     console.log(`  mediapipe/${f} -> ${r.action}`);
   }
 
-  const mpModel = await fetchWithHashCheck(
-    MEDIAPIPE_FACE_MODEL_URL,
-    path.join(VENDOR, 'mediapipe', 'blaze_face_short_range.tflite'),
-    MEDIAPIPE_FACE_MODEL_SHA256
-  );
-  console.log(
-    `  mediapipe/blaze_face_short_range.tflite -> ${mpModel.action}${mpModel.sha256 ? ` (sha256=${mpModel.sha256})` : ''}`
-  );
+  for (const model of MEDIAPIPE_FACE_MODELS) {
+    const r = await fetchWithHashCheck(
+      model.url,
+      path.join(VENDOR, 'mediapipe', model.file),
+      model.sha256
+    );
+    console.log(
+      `  mediapipe/${model.file} -> ${r.action}${r.sha256 ? ` (sha256=${r.sha256})` : ''}`
+    );
+  }
 
   // Surface the total footprint so regressions (accidental bloat) are visible
   // in build logs.
