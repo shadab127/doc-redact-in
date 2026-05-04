@@ -36,7 +36,14 @@ async function runInvariant(
 ): Promise<void> {
   const outbound: Request[] = [];
   page.on('request', (req) => {
-    const host = new URL(req.url()).host;
+    const url = req.url();
+    // blob: URLs are in-memory references created via URL.createObjectURL;
+    // fetching them reads bytes out of the tab's own RAM and never contacts
+    // a remote host. Chromium doesn't fire page.on('request') for them;
+    // WebKit does, and URL parsing gives an empty `host`, which would trip
+    // this check even though no network traffic is involved.
+    if (url.startsWith('blob:')) return;
+    const host = new URL(url).host;
     if (host === baseHost) return;
     outbound.push(req);
   });
