@@ -82,7 +82,7 @@ async function measureImageSource(
   }
   if (typeof Blob !== 'undefined' && input instanceof Blob) {
     try {
-      const bitmap = await createImageBitmap(input);
+      const bitmap = await createImageBitmap(input, { imageOrientation: 'from-image' });
       const out = { width: bitmap.width, height: bitmap.height };
       bitmap.close?.();
       return out;

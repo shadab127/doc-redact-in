@@ -44,7 +44,12 @@ interface RedactionState {
 }
 
 async function rasterImage(file: Blob): Promise<RasterizedPageLike> {
-  const bitmap = await createImageBitmap(file);
+  // Apply EXIF Orientation. Phone cameras routinely store portrait photos as
+  // landscape pixel data plus an EXIF tag; without `from-image` the browser
+  // hands us sideways bytes, and every downstream detector (OCR, face, QR)
+  // sees a rotated document. Fixing this recovers a large slice of the
+  // "rotated phone photo" failure class.
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   const canvas = document.createElement('canvas');
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
