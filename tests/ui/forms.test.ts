@@ -9,7 +9,6 @@ import { describe, expect, it } from 'vitest';
 import {
   isValidEmail,
   validateWaitlist,
-  validateContact,
   WAITLIST_USE_CASES,
 } from '@/src/ui/forms';
 
@@ -63,20 +62,3 @@ describe('validateWaitlist', () => {
   });
 });
 
-describe('validateContact', () => {
-  it('accepts a valid contact payload', () => {
-    expect(
-      validateContact({ email: 'a@b.co', message: 'Hello, this is a note.' })
-    ).toBeNull();
-  });
-
-  it('rejects messages shorter than 10 chars', () => {
-    expect(validateContact({ email: 'a@b.co', message: 'hi' })).toMatch(/10 character/);
-  });
-
-  it('rejects messages longer than 5000 chars', () => {
-    expect(
-      validateContact({ email: 'a@b.co', message: 'a'.repeat(5001) })
-    ).toMatch(/too long/i);
-  });
-});

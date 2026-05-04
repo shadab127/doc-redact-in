@@ -1,27 +1,14 @@
-# Cloudflare Workers config for docredact.in form endpoints.
-# Deploy with: cd workers && npx wrangler deploy --name docredact-waitlist --main waitlist.ts
-#           or: npx wrangler deploy --name docredact-contact --main contact.ts
+# Cloudflare Worker config for the B2B API waitlist endpoint.
+# Deploy with: cd workers && npx wrangler deploy
 
-name = "docredact-forms"
+name = "docredact-waitlist"
 main = "waitlist.ts"
 compatibility_date = "2026-05-01"
 
-# Route the waitlist and contact Workers behind the same custom domain once it
-# is registered. Example (post-launch, after docredact.in is live on Pages):
-#
-# [[env.production.routes]]
-# pattern = "docredact.in/api/waitlist"
-# zone_name = "docredact.in"
-#
-# [[env.production.routes]]
-# pattern = "docredact.in/api/contact"
-# zone_name = "docredact.in"
-
 [[kv_namespaces]]
 binding = "WAITLIST_KV"
-id = "PLACEHOLDER_CREATE_WITH_WRANGLER_KV_NAMESPACE_CREATE"
+id = "0582b77c41a448d684f2475c53abf5bd"
 
 [vars]
 NOTIFICATION_EMAIL = "hello@docredact.in"
 ALLOWED_ORIGINS = "https://docredact.in,https://www.docredact.in"
-# Secrets (RESEND_API_KEY) are set via: wrangler secret put RESEND_API_KEY

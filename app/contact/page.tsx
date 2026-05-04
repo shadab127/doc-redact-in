@@ -7,7 +7,6 @@
  */
 import type { Metadata } from 'next';
 import { TextPage } from '@/src/ui/TextPage';
-import { ContactForm } from '@/src/ui/ContactForm';
 
 export const metadata: Metadata = {
   title: 'Contact — DocRedact.in',
@@ -32,13 +31,10 @@ export default function ContactPage() {
       </p>
       <p>
         For everything else — press questions, business inquiries, private
-        feedback, legal requests — use the form below or email{' '}
+        feedback, legal requests — email{' '}
         <a href="mailto:hello@docredact.in">hello@docredact.in</a>. Messages go
         straight to a personal inbox via Cloudflare Email Routing.
       </p>
-      <div style={{ marginTop: 24 }}>
-        <ContactForm />
-      </div>
       <p style={{ marginTop: 32, fontSize: 13, color: 'var(--muted)' }}>
         No formal SLA. Best-effort response within 3–7 days. Critical bugs are
         prioritized.

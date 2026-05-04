@@ -30,11 +30,6 @@ export interface WaitlistPayload {
   useCase: WaitlistUseCase;
 }
 
-export interface ContactPayload {
-  email: string;
-  message: string;
-}
-
 export function validateWaitlist(v: Partial<WaitlistPayload>): string | null {
   if (!v.email || !isValidEmail(v.email)) return 'Please enter a valid email.';
   if (!v.company || v.company.trim().length < 2)
@@ -43,18 +38,6 @@ export function validateWaitlist(v: Partial<WaitlistPayload>): string | null {
   return null;
 }
 
-export function validateContact(v: Partial<ContactPayload>): string | null {
-  if (!v.email || !isValidEmail(v.email)) return 'Please enter a valid email.';
-  if (!v.message || v.message.trim().length < 10)
-    return 'Please write at least 10 characters.';
-  if (v.message.length > 5000) return 'Message is too long (5000 character max).';
-  return null;
-}
-
-// Form endpoints live at these paths; Cloudflare Pages routes /api/* to the
-// corresponding Cloudflare Worker. Pre-launch these will 404 — forms catch
-// that and show the "we'll wire this up at launch" fallback state.
 export const FORM_ENDPOINTS = {
   waitlist: '/api/waitlist',
-  contact: '/api/contact',
 } as const;

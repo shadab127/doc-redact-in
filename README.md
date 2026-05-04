@@ -34,7 +34,7 @@ Node ≥ 20.
 - [ ] Generate `public/og.png` (1200×630 PNG from `public/og.svg`) — Twitter/LinkedIn/WhatsApp do not render SVG OG images.
 - [ ] Enable Cloudflare Web Analytics; set `NEXT_PUBLIC_CF_ANALYTICS_TOKEN` as a Pages env var.
 - [ ] Set up Cloudflare Email Routing for `hello@docredact.in`.
-- [ ] Deploy `workers/waitlist.ts` and `workers/contact.ts` via `wrangler`; bind `WAITLIST_KV`; route `/api/waitlist` and `/api/contact` to them; set `ALLOWED_ORIGINS=https://docredact.in,https://www.docredact.in` and `RESEND_API_KEY` secret.
+- [ ] Deploy `workers/waitlist.ts` via `wrangler`; bind `WAITLIST_KV`; route `/api/waitlist` to it; set `ALLOWED_ORIGINS=https://docredact.in,https://www.docredact.in`.
 - [ ] Run the real-world Tesseract accuracy spike on 20 Aadhaar photos (Validation Gate #1 per RFC §16).
 - [ ] Verify on a physical iOS Safari device (RFC §9.4).
 
