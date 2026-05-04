@@ -79,12 +79,24 @@ async function processDocument(file: File): Promise<RedactionState> {
     return { result, rasters, fileName: file.name, pagePtSizes };
   }
   const raster = await rasterImage(file);
-  const result = await runDetectionOnDocument(raster.canvas, { face, qr });
+  let effectiveRaster = raster;
+  const result = await runDetectionOnDocument(raster.canvas, {
+    face,
+    qr,
+    autoRotateImage: true,
+    onRaster: (r) => {
+      // Probe fired and rotated the canvas. Swap the raster so preview and
+      // PDF flattening operate on the same pixels detections were made on.
+      effectiveRaster = r;
+    },
+  });
   return {
     result,
-    rasters: [raster],
+    rasters: [effectiveRaster],
     fileName: file.name,
-    pagePtSizes: [{ width: raster.width * 0.75, height: raster.height * 0.75 }],
+    pagePtSizes: [
+      { width: effectiveRaster.width * 0.75, height: effectiveRaster.height * 0.75 },
+    ],
   };
 }
 

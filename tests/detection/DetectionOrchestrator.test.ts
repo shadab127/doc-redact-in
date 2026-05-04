@@ -59,6 +59,27 @@ describe('runDetection', () => {
     const pdf = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
     await expect(runDetection(pdf, { ocr })).rejects.toThrow(/runDetectionOnDocument/);
   });
+
+  it('does not invoke the rotation probe when upright pass finds text', async () => {
+    // If the upright run finds Aadhaar, the probe must not call recognize
+    // a second time — that's the "happy path has zero extra cost" invariant.
+    const aadhaar = mkValidAadhaar();
+    const tokens: OCRToken[] = [
+      tok(aadhaar.slice(0, 4), 10, 0),
+      tok(aadhaar.slice(4, 8), 60, 0),
+      tok(aadhaar.slice(8, 12), 110, 0),
+    ];
+    let calls = 0;
+    const ocr = {
+      async recognize(): Promise<OCRToken[]> {
+        calls++;
+        return tokens;
+      },
+      async terminate() {},
+    };
+    await runDetectionOnDocument(new Blob(), { ocr, autoRotateImage: true });
+    expect(calls).toBe(1);
+  });
 });
 
 describe('runDetectionOnDocument — PDF path (mocked pipeline)', () => {

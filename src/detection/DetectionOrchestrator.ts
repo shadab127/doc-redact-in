@@ -11,6 +11,11 @@ import { detectPassportMrz } from './PassportMrzDetector';
 import { createOCRRunner, type OCRInput, type OCRRunner } from './OCRRunner';
 import type { FaceDetectorRunner } from './FaceDetector';
 import type { QrDetectorRunner } from './QrDetector';
+import {
+  probeImageRotation,
+  rotateCanvas,
+  type ProbeRotation,
+} from './RotationProbe';
 import type {
   Detection,
   DetectionResult,
@@ -24,6 +29,12 @@ export interface RunDetectionOptions {
   face?: FaceDetectorRunner;
   qr?: QrDetectorRunner;
   rasterizeScale?: number;
+  /**
+   * If true, the image path will probe 90°/180°/270° rotations when the
+   * upright pass yields zero Verhoeff-valid Aadhaar or PAN hits, and re-run
+   * detection on the winning rotation. Default false; RedactorApp opts in.
+   */
+  autoRotateImage?: boolean;
 }
 
 export interface RasterizedPageLike {
@@ -114,8 +125,9 @@ async function runDetectors(
 
 async function runOnImage(
   image: OCRInput,
-  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner }
-): Promise<DetectionResult> {
+  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner },
+  opts: { autoRotate: boolean } = { autoRotate: false }
+): Promise<DetectionResult & { effectiveCanvas?: HTMLCanvasElement; rotationApplied?: ProbeRotation }> {
   const started = Date.now();
   const canvasLike =
     image instanceof Blob || typeof image === 'string' ? null : (image as HTMLCanvasElement | ImageBitmap);
@@ -123,6 +135,30 @@ async function runOnImage(
     measureImageSource(image),
     runDetectors(canvasLike, image, runners),
   ]);
+
+  // If auto-rotate is enabled, the upright pass had no Verhoeff-valid text
+  // hits, and we have a canvas-like source to rotate, probe 90/180/270.
+  // Rationale: the probe runs at most 3 downscaled OCR passes; skipping it
+  // when upright already found text keeps the happy-path cost at zero.
+  const hasText = detections.some(
+    (d) => d.kind === 'aadhaar' || d.kind === 'pan' || d.kind === 'passport_mrz'
+  );
+  if (opts.autoRotate && !hasText && canvasLike) {
+    const winning = await probeImageRotation(canvasLike, runners.ocr);
+    if (winning) {
+      const rotated = rotateCanvas(canvasLike, winning);
+      const rotatedDetections = await runDetectors(rotated, rotated, runners);
+      return {
+        detections: rotatedDetections,
+        sourceWidth: rotated.width,
+        sourceHeight: rotated.height,
+        elapsedMs: Date.now() - started,
+        effectiveCanvas: rotated,
+        rotationApplied: winning,
+      };
+    }
+  }
+
   return {
     detections,
     sourceWidth: source.width,
@@ -211,9 +247,34 @@ export async function runDetectionOnDocument(
     return runOnPdf(input as Blob, runners, opts.pdfPipeline, scale, opts.onRaster);
   }
 
-  const imageResult = await runOnImage(input as OCRInput, runners);
+  const imageResult = await runOnImage(input as OCRInput, runners, {
+    autoRotate: opts.autoRotateImage ?? false,
+  });
+  // If the probe rotated the image, publish the rotated canvas so the UI's
+  // preview and the PDF flattener operate on the same pixels the detections
+  // were made against. Without this, bboxes sit on a canvas rotated by a
+  // different amount than the one shown to the user.
+  if (imageResult.effectiveCanvas && opts.onRaster) {
+    opts.onRaster(
+      {
+        pageIndex: 0,
+        canvas: imageResult.effectiveCanvas,
+        width: imageResult.effectiveCanvas.width,
+        height: imageResult.effectiveCanvas.height,
+      },
+      0
+    );
+  }
   return {
-    pages: [{ ...imageResult, pageIndex: 0 }],
+    pages: [
+      {
+        detections: imageResult.detections,
+        sourceWidth: imageResult.sourceWidth,
+        sourceHeight: imageResult.sourceHeight,
+        elapsedMs: imageResult.elapsedMs,
+        pageIndex: 0,
+      },
+    ],
     totalElapsedMs: imageResult.elapsedMs,
     sourceKind: 'image',
   };
