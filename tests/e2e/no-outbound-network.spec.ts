@@ -56,7 +56,8 @@ async function runInvariant(
   await page.waitForFunction(
     () =>
       document.body.textContent?.includes('Found') ||
-      document.body.textContent?.includes('Error:'),
+      document.body.textContent?.includes('went wrong') ||
+      document.body.textContent?.includes("Couldn't read"),
     null,
     { timeout: 60_000 }
   );

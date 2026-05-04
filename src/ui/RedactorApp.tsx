@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react';
 import { DropZone } from './DropZone';
 import { CameraCapture } from './CameraCapture';
+import { useIsMobile } from './useIsMobile';
 import {
   DetectionToggleList,
   defaultEnabledMap,
@@ -28,6 +29,7 @@ import type { DocumentDetectionResult } from '@/src/detection/types';
 import { createFaceDetectorRunner } from '@/src/detection/FaceDetector';
 import { createQrDetectorRunner } from '@/src/detection/QrDetector';
 import { flattenToImageOnlyPdf } from '@/src/masking/PdfFlattener';
+import { friendlyError } from './friendlyError';
 
 // Hoisted so the face-api model weights and zxing WASM are fetched at most
 // once per browser tab — not re-loaded on every file selection.
@@ -100,12 +102,19 @@ async function processDocument(file: File): Promise<RedactionState> {
   };
 }
 
-export function RedactorApp() {
+export interface RedactorAppProps {
+  /** URL of a sample file to load when the user clicks "Try a sample ID". */
+  sampleUrl?: string;
+}
+
+export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
   const [status, setStatus] = useState<Status>('idle');
   const [state, setState] = useState<RedactionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map());
   const [previewPageIndex, setPreviewPageIndex] = useState<number>(0);
+  const isMobile = useIsMobile();
+  const busy = status === 'running' || status === 'downloading';
 
   const onFile = async (file: File) => {
     setStatus('running');
@@ -118,7 +127,22 @@ export function RedactorApp() {
       setEnabled(defaultEnabledMap(next.result.pages));
       setStatus('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(friendlyError(e));
+      setStatus('error');
+    }
+  };
+
+  const loadSample = async () => {
+    if (!sampleUrl || busy) return;
+    try {
+      const resp = await fetch(sampleUrl);
+      if (!resp.ok) throw new Error(`Failed to fetch sample: ${resp.status}`);
+      const blob = await resp.blob();
+      const filename = sampleUrl.split('/').pop() ?? 'sample.jpg';
+      const file = new File([blob], filename, { type: blob.type || 'image/svg+xml' });
+      await onFile(file);
+    } catch (e) {
+      setError(friendlyError(e));
       setStatus('error');
     }
   };
@@ -149,12 +173,11 @@ export function RedactorApp() {
       triggerDownload(pdfBytes, redactedFilename(state.fileName));
       setStatus('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(friendlyError(e));
       setStatus('error');
     }
   };
 
-  const busy = status === 'running' || status === 'downloading';
   const totalDetections =
     state?.result.pages.reduce((n, p) => n + p.detections.length, 0) ?? 0;
   const enabledCount =
@@ -181,21 +204,45 @@ export function RedactorApp() {
 
   return (
     <section style={{ marginTop: 24 }}>
-      <div className="hero-mobile">
-        <CameraCapture onFile={onFile} disabled={busy} />
-        <div style={{ marginTop: 12 }}>
+      {isMobile === null ? null : isMobile ? (
+        <>
+          <CameraCapture onFile={onFile} disabled={busy} />
+          <div style={{ marginTop: 12 }}>
+            <DropZone onFile={onFile} disabled={busy} />
+          </div>
+        </>
+      ) : (
+        <>
           <DropZone onFile={onFile} disabled={busy} />
-        </div>
-      </div>
-      <div className="hero-desktop">
-        <DropZone onFile={onFile} disabled={busy} />
-      </div>
+          {sampleUrl && (
+            <div style={{ marginTop: 10, textAlign: 'center' }}>
+              <button
+                onClick={loadSample}
+                disabled={busy}
+                data-testid="try-sample-btn"
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  color: 'var(--accent)',
+                  fontSize: 13,
+                  padding: '6px 14px',
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                Try a sample ID
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       <div style={{ marginTop: 16, fontSize: 14, color: 'var(--muted)' }}>
         {status === 'idle' && 'Choose a file to begin.'}
         {status === 'running' && `Scanning ${state?.fileName ?? ''}…`}
         {status === 'downloading' && 'Building flattened PDF…'}
-        {status === 'error' && `Error: ${error}`}
+        {status === 'error' && error}
         {status === 'done' && state && (
           <>
             Found <strong>{totalDetections}</strong> detection

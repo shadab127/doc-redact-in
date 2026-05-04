@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 380" width="320" height="380" role="img" aria-label="Before and after: ID card with PII replaced by black redaction bars">
+  <defs>
+    <rect id="card-shadow" x="0" y="0" width="280" height="160" rx="12" ry="12"/>
+  </defs>
+
+  <!-- Label: Before -->
+  <text x="20" y="22" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" fill="#9a9aa2" letter-spacing="0.5">BEFORE</text>
+
+  <!-- Card 1 (before) -->
+  <rect x="20" y="30" width="280" height="158" rx="12" ry="12" fill="#1a1c22" stroke="#26282e" stroke-width="1.5"/>
+
+  <!-- Card header bar -->
+  <rect x="20" y="30" width="280" height="32" rx="12" ry="12" fill="#26282e"/>
+  <rect x="20" y="50" width="280" height="12" fill="#26282e"/>
+
+  <!-- "GOVERNMENT ID" text in header -->
+  <text x="36" y="51" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="11" font-weight="600" fill="#9a9aa2" letter-spacing="1">GOVERNMENT ID</text>
+
+  <!-- Face silhouette (circle + torso) -->
+  <circle cx="62" cy="107" r="22" fill="#2e3038"/>
+  <ellipse cx="62" cy="138" rx="18" ry="10" fill="#2e3038"/>
+  <!-- Face features (minimal) -->
+  <circle cx="55" cy="104" r="2.5" fill="#9a9aa2"/>
+  <circle cx="69" cy="104" r="2.5" fill="#9a9aa2"/>
+  <path d="M56 113 Q62 118 68 113" stroke="#9a9aa2" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Name label -->
+  <text x="96" y="88" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="9" fill="#9a9aa2">Name</text>
+  <text x="96" y="103" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" font-weight="600" fill="#e7e7ea">Ravi Kumar</text>
+
+  <!-- DOB label -->
+  <text x="96" y="120" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="9" fill="#9a9aa2">Date of Birth</text>
+  <text x="96" y="135" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" font-weight="600" fill="#e7e7ea">01/01/1990</text>
+
+  <!-- ID number label -->
+  <text x="96" y="152" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="9" fill="#9a9aa2">ID Number</text>
+  <text x="96" y="166" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="13" font-weight="700" fill="#7cc4ff" letter-spacing="2">1234 5678 9012</text>
+
+  <!-- QR placeholder (bottom right) -->
+  <rect x="243" y="95" width="44" height="44" rx="4" fill="#26282e" stroke="#3a3c44" stroke-width="1"/>
+  <rect x="248" y="100" width="12" height="12" rx="1" fill="#9a9aa2"/>
+  <rect x="264" y="100" width="12" height="12" rx="1" fill="#9a9aa2"/>
+  <rect x="248" y="116" width="12" height="12" rx="1" fill="#9a9aa2"/>
+  <rect x="264" y="116" width="5" height="5" rx="0.5" fill="#9a9aa2"/>
+  <rect x="271" y="116" width="5" height="5" rx="0.5" fill="#9a9aa2"/>
+  <rect x="264" y="123" width="5" height="5" rx="0.5" fill="#9a9aa2"/>
+  <rect x="271" y="123" width="5" height="5" rx="0.5" fill="#9a9aa2"/>
+
+
+  <!-- Arrow down -->
+  <g transform="translate(160,198)">
+    <line x1="0" y1="-8" x2="0" y2="8" stroke="#7cc4ff" stroke-width="2" stroke-linecap="round"/>
+    <polyline points="-7,2 0,10 7,2" stroke="#7cc4ff" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+  <text x="112" y="202" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="11" fill="#7cc4ff">Auto-detect &amp; redact</text>
+
+  <!-- Label: After -->
+  <text x="20" y="228" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" fill="#9a9aa2" letter-spacing="0.5">AFTER</text>
+
+  <!-- Card 2 (after/redacted) -->
+  <rect x="20" y="236" width="280" height="130" rx="12" ry="12" fill="#1a1c22" stroke="#26282e" stroke-width="1.5"/>
+
+  <!-- Card header bar -->
+  <rect x="20" y="236" width="280" height="32" rx="12" ry="12" fill="#26282e"/>
+  <rect x="20" y="256" width="280" height="12" fill="#26282e"/>
+  <text x="36" y="257" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="11" font-weight="600" fill="#9a9aa2" letter-spacing="1">GOVERNMENT ID</text>
+
+  <!-- Redacted face (black box) -->
+  <rect x="40" y="278" width="44" height="52" rx="4" fill="#000000"/>
+  <text x="47" y="308" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="8" fill="#444">FACE</text>
+
+  <!-- Name: kept -->
+  <text x="96" y="292" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="9" fill="#9a9aa2">Name</text>
+  <text x="96" y="307" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" font-weight="600" fill="#e7e7ea">Ravi Kumar</text>
+
+  <!-- DOB: kept -->
+  <text x="96" y="322" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="9" fill="#9a9aa2">Date of Birth</text>
+  <text x="96" y="337" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" font-weight="600" fill="#e7e7ea">01/01/1990</text>
+
+  <!-- Redacted ID number (black bar) -->
+  <rect x="96" y="344" width="120" height="16" rx="3" fill="#000000"/>
+
+  <!-- Redacted QR (black box) -->
+  <rect x="243" y="278" width="44" height="44" rx="4" fill="#000000"/>
+  <text x="248" y="305" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="8" fill="#444">QR</text>
+
+  <!-- Bottom caption -->
+  <text x="20" y="378" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="10" fill="#9a9aa2">Synthetic example. No real PII shown.</text>
+</svg>
