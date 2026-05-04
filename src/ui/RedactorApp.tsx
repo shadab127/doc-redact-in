@@ -62,6 +62,40 @@ async function rasterImage(file: Blob): Promise<RasterizedPageLike> {
   return { pageIndex: 0, canvas, width: canvas.width, height: canvas.height };
 }
 
+async function rasterizeSvgBlobToPngFile(
+  blob: Blob,
+  filename: string
+): Promise<File> {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    img.decoding = 'sync';
+    const loaded = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load sample SVG'));
+    });
+    img.src = url;
+    await loaded;
+    const w = img.naturalWidth || 640;
+    const h = img.naturalHeight || 400;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D context unavailable');
+    ctx.drawImage(img, 0, 0, w, h);
+    const pngBlob: Blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))),
+        'image/png'
+      );
+    });
+    return new File([pngBlob], filename, { type: 'image/png' });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function processDocument(file: File): Promise<RedactionState> {
   const face = sharedFaceRunner;
   const qr = sharedQrRunner;
@@ -138,8 +172,15 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
       const resp = await fetch(sampleUrl);
       if (!resp.ok) throw new Error(`Failed to fetch sample: ${resp.status}`);
       const blob = await resp.blob();
-      const filename = sampleUrl.split('/').pop() ?? 'sample.jpg';
-      const file = new File([blob], filename, { type: blob.type || 'image/svg+xml' });
+      // createImageBitmap rejects SVG on Chromium, so rasterize to PNG via
+      // <img> + canvas before feeding the detection pipeline.
+      const isSvg =
+        blob.type.includes('svg') || /\.svg$/i.test(sampleUrl);
+      const file = isSvg
+        ? await rasterizeSvgBlobToPngFile(blob, 'sample-aadhaar.png')
+        : new File([blob], sampleUrl.split('/').pop() ?? 'sample.jpg', {
+            type: blob.type || 'image/jpeg',
+          });
       await onFile(file);
     } catch (e) {
       setError(friendlyError(e));

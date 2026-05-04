@@ -23,16 +23,15 @@ test.describe('Desktop hero', () => {
     await expect(btn).toBeEnabled();
   });
 
-  test('"Try a sample ID" button triggers processing state', async ({ page }) => {
+  test('"Try a sample ID" button processes the bundled sample successfully', async ({ page }) => {
     await page.goto('/');
-    // Wait for hydration / dynamic import to settle
     await expect(page.getByTestId('try-sample-btn')).toBeVisible();
     await page.getByTestId('try-sample-btn').click();
-    // Assert scanning/processing indicator appears (soft assertion — may be fast).
-    // SVG may decode successfully (Found) or fail (friendly error mapper copy).
-    await expect(
-      page.getByText(/Scanning|Found|Couldn't read|went wrong/i)
-    ).toBeVisible({ timeout: 30_000 });
+    // The bundled sample contains a Verhoeff-valid synthetic Aadhaar number,
+    // so detection must succeed end-to-end (no decode errors).
+    await expect(page.getByText(/Found \d+ detection/i)).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   test('detection chips strip contains all 5 labels', async ({ page }) => {
