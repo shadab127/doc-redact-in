@@ -47,12 +47,13 @@
   <rect x="271" y="123" width="5" height="5" rx="0.5" fill="#9a9aa2"/>
 
 
-  <!-- Arrow down -->
-  <g transform="translate(160,198)">
-    <line x1="0" y1="-8" x2="0" y2="8" stroke="#7cc4ff" stroke-width="2" stroke-linecap="round"/>
-    <polyline points="-7,2 0,10 7,2" stroke="#7cc4ff" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- "Auto-detect & redact" label above arrow -->
+  <text x="160" y="202" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="11" fill="#7cc4ff">Auto-detect &amp; redact</text>
+
+  <!-- Arrow down (single path: shaft + V arrowhead meeting cleanly at the tip) -->
+  <g transform="translate(160,214)">
+    <path d="M0 -7 L0 6 M-6 0 L0 6 L6 0" stroke="#7cc4ff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <text x="112" y="202" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="11" fill="#7cc4ff">Auto-detect &amp; redact</text>
 
   <!-- Label: After -->
   <text x="20" y="228" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="12" fill="#9a9aa2" letter-spacing="0.5">AFTER</text>
