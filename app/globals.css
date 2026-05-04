@@ -1,9 +1,107 @@
-:root {
+/* ------------------------------------------------------------------ */
+/* Theme tokens                                                        */
+/* Light is the default (designer palette). [data-theme="dark"] opts   */
+/* into the original dark theme. An inline script in <head> sets the   */
+/* attribute before paint to avoid a flash of the wrong theme.          */
+/* ------------------------------------------------------------------ */
+
+:root,
+:root[data-theme="light"] {
+  --bg: #fbfbfe;
+  --bg-elev: #ffffff;
+  --fg: #0f1020;
+  --fg-soft: #1f2133;
+  --muted: #6b6e82;
+  --accent: #6d28d9;
+  --brand: #7c3aed;
+  --brand-dim: #6d28d9;
+  --brand-soft: #a78bfa;
+  --brand-glow: rgba(124, 58, 237, 0.22);
+  --brand-surface: rgba(124, 58, 237, 0.06);
+  --border: #e6e6ef;
+  --border-strong: #d9d9e4;
+  --card-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 24px 48px -24px rgba(30, 20, 80, 0.18),
+    0 0 0 1px rgba(124, 58, 237, 0.05);
+  --page-glow:
+    radial-gradient(1200px 600px at 50% -220px, rgba(167, 139, 250, 0.22), transparent 60%);
+  --header-bg: rgba(251, 251, 254, 0.75);
+  --surface-subtle: rgba(15, 16, 32, 0.02);
+  --title-accent-from: #7c3aed;
+  --title-accent-to: #4c1d95;
+  --badge-fg: #4c1d95;
+  --hi-card-top: #f4f4fb;
+  --hi-card-bot: #eceafc;
+  --hi-header-bg: #e9e7f7;
+  --hi-face-bg: #d8d6e8;
+  --hi-qr-bg: #d8d6e8;
+}
+
+:root[data-theme="dark"] {
   --bg: #0b0c0f;
-  --fg: #e7e7ea;
+  --bg-elev: #14151a;
+  --fg: #eef0f4;
+  --fg-soft: #dcdde2;
   --muted: #9a9aa2;
-  --accent: #7cc4ff;
+  --accent: #a78bfa;
+  --brand: #a78bfa;
+  --brand-dim: #8b5cf6;
+  --brand-soft: #c4b5fd;
+  --brand-glow: rgba(167, 139, 250, 0.28);
+  --brand-surface: rgba(139, 92, 246, 0.10);
   --border: #26282e;
+  --border-strong: #2f323a;
+  --card-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 20px 40px -20px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(139, 92, 246, 0.06);
+  --page-glow:
+    radial-gradient(1200px 600px at 50% -200px, rgba(139, 92, 246, 0.10), transparent 60%);
+  --header-bg: rgba(11, 12, 15, 0.75);
+  --surface-subtle: rgba(255, 255, 255, 0.02);
+  --title-accent-from: #c4b5fd;
+  --title-accent-to: #8b5cf6;
+  --badge-fg: #d8ccff;
+  --hi-card-top: #1a1c22;
+  --hi-card-bot: #14161c;
+  --hi-header-bg: #22242c;
+  --hi-face-bg: #2e3038;
+  --hi-qr-bg: #2e3038;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0b0c0f;
+    --bg-elev: #14151a;
+    --fg: #eef0f4;
+    --fg-soft: #dcdde2;
+    --muted: #9a9aa2;
+    --accent: #a78bfa;
+    --brand: #a78bfa;
+    --brand-dim: #8b5cf6;
+    --brand-soft: #c4b5fd;
+    --brand-glow: rgba(167, 139, 250, 0.28);
+    --brand-surface: rgba(139, 92, 246, 0.10);
+    --border: #26282e;
+    --border-strong: #2f323a;
+    --card-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.03) inset,
+      0 20px 40px -20px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(139, 92, 246, 0.06);
+    --page-glow:
+      radial-gradient(1200px 600px at 50% -200px, rgba(139, 92, 246, 0.10), transparent 60%);
+    --header-bg: rgba(11, 12, 15, 0.75);
+    --surface-subtle: rgba(255, 255, 255, 0.02);
+    --title-accent-from: #c4b5fd;
+    --title-accent-to: #8b5cf6;
+    --badge-fg: #d8ccff;
+    --hi-card-top: #1a1c22;
+    --hi-card-bot: #14161c;
+    --hi-header-bg: #22242c;
+    --hi-face-bg: #2e3038;
+    --hi-qr-bg: #2e3038;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -11,13 +109,168 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background: var(--page-glow), var(--bg);
   color: var(--fg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-a { color: var(--accent); }
+a { color: var(--brand); }
+
+/* Site header */
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.site-header-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.site-header-brand {
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.site-header-nav {
+  display: none;
+  gap: 24px;
+  margin-left: auto;
+  font-size: 14px;
+}
+
+.site-header-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 150ms;
+}
+
+.site-header-nav a:hover {
+  color: var(--fg);
+}
+
+.site-header-cta {
+  margin-left: auto;
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: linear-gradient(180deg, var(--brand-soft) 0%, var(--brand) 100%);
+  box-shadow: 0 8px 20px -10px var(--brand-glow), inset 0 1px 0 rgba(255,255,255,0.2);
+  transition: box-shadow 160ms, transform 160ms, filter 160ms;
+}
+
+.site-header-cta:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 24px -10px var(--brand-glow), inset 0 1px 0 rgba(255,255,255,0.25);
+  transform: translateY(-1px);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-subtle);
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0;
+  transition: background 150ms, border-color 150ms;
+}
+
+.theme-toggle:hover {
+  background: var(--brand-surface);
+  border-color: var(--brand);
+}
+
+.theme-toggle-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (min-width: 768px) {
+  .site-header-nav {
+    display: flex;
+  }
+  .site-header-cta,
+  .theme-toggle {
+    margin-left: 0;
+  }
+  .theme-toggle + .site-header-cta {
+    margin-left: 8px;
+  }
+}
+
+/* Hero shell */
+.hero-main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 24px 32px;
+}
+
+.hero-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hero-title {
+  font-size: 40px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  margin: 10px 0 0;
+  color: var(--fg);
+}
+
+.hero-title-accent {
+  background: linear-gradient(135deg, var(--title-accent-from) 0%, var(--title-accent-to) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 4px 0 8px;
+  max-width: 52ch;
+}
+
+/* Elevated card that wraps the redactor tool */
+.hero-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+}
 
 /* Two-column desktop hero */
 .hero-grid {
@@ -26,32 +279,65 @@ a { color: var(--accent); }
   gap: 32px;
 }
 
-.hero-illustration { display: none; }
+.hero-illustration {
+  display: flex;
+  justify-content: center;
+  margin: 24px auto 8px;
+  max-width: 280px;
+}
 
 @media (min-width: 768px) {
-  .hero-grid {
-    grid-template-columns: 1.1fr 0.9fr;
-    align-items: center;
+  .hero-main {
+    max-width: 1120px;
+    padding: 72px 32px 48px;
   }
 
-  main {
-    max-width: 1080px;
+  .hero-title {
+    font-size: 56px;
+  }
+
+  .hero-sub {
+    font-size: 18px;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: start;
+    gap: 48px;
   }
 
   .hero-illustration {
-    display: flex;
-    justify-content: center;
+    margin: 0;
+    max-width: none;
   }
+}
+
+/* Hero eyebrow badge */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  border: 1px solid var(--brand);
+  background: var(--brand-surface);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--badge-fg);
+  letter-spacing: 0.02em;
 }
 
 /* Detection capability chips */
 .chip {
   display: inline-block;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-subtle);
   border-radius: 999px;
-  color: var(--muted);
-  padding: 6px 12px;
+  color: var(--fg);
+  padding: 8px 14px;
   font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -59,6 +345,6 @@ a { color: var(--accent); }
 .trust-line {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 12px;
+  margin-top: 16px;
   line-height: 1.5;
 }

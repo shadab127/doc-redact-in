@@ -16,9 +16,10 @@ export function DetectionChips() {
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        gap: '8px',
-        marginTop: '24px',
-        marginBottom: '8px',
+        gap: '10px',
+        marginTop: '40px',
+        marginBottom: '16px',
+        justifyContent: 'center',
       }}
     >
       {CHIPS.map((label) => (

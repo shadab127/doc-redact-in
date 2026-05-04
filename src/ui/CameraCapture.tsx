@@ -31,15 +31,17 @@ export function CameraCapture({ onFile, disabled = false }: CameraCaptureProps) 
         onClick={() => ref.current?.click()}
         style={{
           width: '100%',
-          padding: '20px 16px',
-          background: 'var(--accent)',
-          color: '#000',
+          padding: '18px 16px',
+          background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%)',
+          color: '#fff',
           border: 'none',
           borderRadius: 12,
-          fontSize: 18,
-          fontWeight: 600,
+          fontSize: 17,
+          fontWeight: 700,
+          letterSpacing: '0.01em',
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.5 : 1,
+          boxShadow: '0 10px 24px -12px rgba(124, 58, 237, 0.7), inset 0 1px 0 rgba(255,255,255,0.15)',
         }}
         data-testid="camera-capture-button"
       >

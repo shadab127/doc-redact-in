@@ -49,7 +49,7 @@ async function runInvariant(
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'DocRedact.in' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   await injectFile();
 

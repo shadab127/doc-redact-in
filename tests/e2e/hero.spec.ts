@@ -12,8 +12,10 @@ test.describe('Desktop hero', () => {
 
   test('hero illustration is visible', async ({ page }) => {
     await page.goto('/');
-    const img = page.locator('img[src="/hero-before-after.svg"]');
-    await expect(img).toBeVisible();
+    const illus = page
+      .locator('.hero-illustration svg[role="img"]')
+      .filter({ has: page.locator('text="BEFORE"') });
+    await expect(illus).toBeVisible();
   });
 
   test('"Try a sample ID" button is visible and enabled', async ({ page }) => {

@@ -262,17 +262,18 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
                 disabled={busy}
                 data-testid="try-sample-btn"
                 style={{
-                  background: 'none',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  color: 'var(--accent)',
+                  background: 'var(--surface-subtle)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 10,
+                  color: 'var(--fg)',
                   fontSize: 13,
-                  padding: '6px 14px',
+                  fontWeight: 500,
+                  padding: '8px 16px',
                   cursor: busy ? 'not-allowed' : 'pointer',
                   opacity: busy ? 0.5 : 1,
                 }}
               >
-                Try a sample ID
+                Try a sample ID →
               </button>
             </div>
           )}
@@ -314,14 +315,16 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
               <button
                 onClick={download}
                 style={{
-                  padding: '10px 16px',
-                  background: 'var(--accent)',
-                  color: '#000',
+                  padding: '12px 20px',
+                  background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%)',
+                  color: '#fff',
                   border: 'none',
-                  borderRadius: 8,
+                  borderRadius: 10,
                   fontSize: 14,
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  letterSpacing: '0.01em',
                   cursor: 'pointer',
+                  boxShadow: '0 10px 24px -12px rgba(124, 58, 237, 0.7), inset 0 1px 0 rgba(255,255,255,0.15)',
                 }}
               >
                 Download redacted PDF ({enabledCount} masked)

@@ -56,13 +56,14 @@ export function DropZone({
       onDrop={onDrop}
       style={{
         display: 'block',
-        border: `2px dashed ${isDragging ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 12,
-        padding: '48px 16px',
+        border: `2px dashed ${isDragging ? 'var(--brand)' : 'var(--border-strong)'}`,
+        background: isDragging ? 'var(--brand-surface)' : 'var(--surface-subtle)',
+        borderRadius: 14,
+        padding: '52px 16px',
         textAlign: 'center',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
-        transition: 'border-color 120ms',
+        transition: 'border-color 160ms, background 160ms',
       }}
     >
       <input
@@ -73,7 +74,7 @@ export function DropZone({
         style={{ display: 'none' }}
         data-testid="dropzone-input"
       />
-      <div style={{ fontSize: 16 }}>
+      <div style={{ fontSize: 16, fontWeight: 600 }}>
         {isDragging ? 'Drop file to redact' : 'Drop or tap to choose a file'}
       </div>
       <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>

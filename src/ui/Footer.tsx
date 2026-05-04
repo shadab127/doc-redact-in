@@ -21,13 +21,8 @@ export function Footer() {
       }}
     >
       <div>
-        <Link href="/mask-aadhaar-online">Mask Aadhaar</Link> ·{' '}
-        <Link href="/how-it-works">How it works</Link> ·{' '}
         <Link href="/privacy">Privacy</Link> ·{' '}
-        <Link href="/terms">Terms</Link>
-      </div>
-      <div>
-        <Link href="/api-waitlist">B2B API</Link> ·{' '}
+        <Link href="/terms">Terms</Link> ·{' '}
         <Link href="/contact">Contact</Link> ·{' '}
         <a
           href="https://github.com/shadab127/doc-redact-in"
