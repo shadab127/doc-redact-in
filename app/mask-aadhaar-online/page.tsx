@@ -178,7 +178,7 @@ export default function MaskAadhaarOnlinePage() {
           <li>
             Read the code on{' '}
             <a
-              href="https://github.com/shadabkhan/doc-redact-in"
+              href="https://github.com/shadab127/doc-redact-in"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -239,11 +239,11 @@ export default function MaskAadhaarOnlinePage() {
         <p>
           The repository at{' '}
           <a
-            href="https://github.com/shadabkhan/doc-redact-in"
+            href="https://github.com/shadab127/doc-redact-in"
             rel="noopener noreferrer"
             target="_blank"
           >
-            github.com/shadabkhan/doc-redact-in
+            github.com/shadab127/doc-redact-in
           </a>{' '}
           contains every line of detection, preprocessing, masking, and
           PDF-rewriting code used on this page. Commit history is preserved

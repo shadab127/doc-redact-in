@@ -59,11 +59,11 @@ export default function PrivacyPage() {
       <p>
         Our full code is public on GitHub under AGPL-3.0:{' '}
         <a
-          href="https://github.com/shadabkhan/doc-redact-in"
+          href="https://github.com/shadab127/doc-redact-in"
           rel="noopener noreferrer"
           target="_blank"
         >
-          github.com/shadabkhan/doc-redact-in
+          github.com/shadab127/doc-redact-in
         </a>
         . The &ldquo;no network calls during redaction&rdquo; property is tested in
         CI. Open your browser&apos;s DevTools, go to the Network tab, and watch —

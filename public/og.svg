@@ -16,5 +16,5 @@
   <text x="80" y="340" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="80" font-weight="700" fill="#e7e7ea">DocRedact.in</text>
   <text x="80" y="408" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" fill="#9a9aa2">Your browser redacts Aadhaar, PAN, passport.</text>
   <text x="80" y="452" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" fill="#9a9aa2">Nothing leaves your device.</text>
-  <text x="80" y="560" font-family="ui-monospace, SFMono-Regular, monospace" font-size="20" fill="#7cc4ff">github.com/shadabkhan/doc-redact-in · AGPL-3.0</text>
+  <text x="80" y="560" font-family="ui-monospace, SFMono-Regular, monospace" font-size="20" fill="#7cc4ff">github.com/shadab127/doc-redact-in · AGPL-3.0</text>
 </svg>

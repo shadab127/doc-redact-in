@@ -30,7 +30,7 @@ export function Footer() {
         <Link href="/api-waitlist">B2B API</Link> ·{' '}
         <Link href="/contact">Contact</Link> ·{' '}
         <a
-          href="https://github.com/shadabkhan/doc-redact-in"
+          href="https://github.com/shadab127/doc-redact-in"
           rel="noopener noreferrer"
           target="_blank"
         >

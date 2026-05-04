@@ -75,11 +75,11 @@ export default function TermsPage() {
         </a>
         . Source code is available at{' '}
         <a
-          href="https://github.com/shadabkhan/doc-redact-in"
+          href="https://github.com/shadab127/doc-redact-in"
           rel="noopener noreferrer"
           target="_blank"
         >
-          github.com/shadabkhan/doc-redact-in
+          github.com/shadab127/doc-redact-in
         </a>
         .
       </p>

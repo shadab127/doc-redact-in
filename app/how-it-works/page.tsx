@@ -57,11 +57,11 @@ No network hop between any of these steps carries document data.`}
       <p>
         The full source is at{' '}
         <a
-          href="https://github.com/shadabkhan/doc-redact-in"
+          href="https://github.com/shadab127/doc-redact-in"
           rel="noopener noreferrer"
           target="_blank"
         >
-          github.com/shadabkhan/doc-redact-in
+          github.com/shadab127/doc-redact-in
         </a>
         , licensed under AGPL-3.0-or-later. The key source files to look at if
         you want to verify the privacy story yourself:

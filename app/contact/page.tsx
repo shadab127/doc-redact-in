@@ -21,7 +21,7 @@ export default function ContactPage() {
       <p>
         For bug reports and feature requests, the fastest channel is{' '}
         <a
-          href="https://github.com/shadabkhan/doc-redact-in/issues"
+          href="https://github.com/shadab127/doc-redact-in/issues"
           rel="noopener noreferrer"
           target="_blank"
         >
