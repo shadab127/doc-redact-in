@@ -1,9 +1,9 @@
 # RFC: DocRedact.in — MVP Technical Design
 
-**Status:** Draft v2 (incorporates 20-question review)
+**Status:** Draft v3 (post-launch, reflects shipped architecture)
 **Author:** Shadab Khan
 **Created:** 2026-05-01
-**Updated:** 2026-05-02
+**Updated:** 2026-05-05
 **Target MVP:** v1.0 (5 weekends build + 3-week sequenced launch)
 **License:** AGPL-3.0-or-later
 
@@ -31,6 +31,7 @@ UIDAI's own masked-Aadhaar download is a 5-step OTP portal. Existing global tool
 - B2B waitlist form (email + company + use case dropdown)
 - Public GitHub repo, AGPL-3.0 licensed
 - Plain-English privacy policy
+- Manual draw-to-redact: user can draw rectangles on any page when auto-detection misses a region *(planned; see §4.9)*
 
 ### 1.3 Non-Goals (MVP)
 
@@ -152,19 +153,23 @@ UIDAI's own masked-Aadhaar download is a 5-step OTP portal. Existing global tool
 
 ### 4.1 Orchestration
 
-Single Web Worker orchestrates the pipeline to keep the UI thread responsive. Heavy steps (Tesseract, face-api) run in their own Workers where supported. Fallback to main thread on iOS Safari where `OffscreenCanvas` or nested Workers are flaky.
+The `DetectionOrchestrator` runs on the main thread. Tesseract.js isolates its own worker internally (so OCR never blocks the UI); MediaPipe (face) and zxing-wasm (QR) run WASM inline on the main thread. This has been adequate in practice for the single-image path, which is the dominant use case.
 
 ```
-MainThread → DetectionOrchestrator (Worker)
-                ├─ ImagePreprocessor
-                ├─ OCRRunner (Tesseract Worker, English only)
+MainThread → DetectionOrchestrator
+                ├─ ImagePreprocessor          (implemented; wiring pending — see §4.2 and W6)
+                ├─ OCRRunner (Tesseract — own internal worker)
                 ├─ AadhaarDetector
                 ├─ PanDetector
                 ├─ PassportMrzDetector
-                ├─ FaceDetector (face-api Worker)
-                ├─ QrDetector (zxing Worker)
-                └─ RegionMerger
+                ├─ FaceDetector (MediaPipe BlazeFace, inline WASM)
+                ├─ QrDetector  (zxing-wasm, inline WASM)
+                └─ RotationProbe (image path only)
 ```
+
+**Why not a dedicated orchestrator worker:** considered post-launch and rejected for a solo-maintained MVP. Net gain (UI responsiveness on ≥10 MB multi-page PDFs, cleaner progress plumbing, `OffscreenCanvas` usage) is real but invisible on the common single-photo path; net cost (iOS Safari fallback branch, canvas-transfer refactor, worse debuggability, larger CSP/bundle surface area) lands on every detection change. Revisit if/when batch mode or the B2B server tier forces a worker-shaped abstraction anyway.
+
+**Progress UX substitute (W6, pending):** thread a lightweight `onStage(stage, pageIndex)` callback through `runDetectionOnDocument` so the UI can surface "Rasterising page 2/4… OCR… Face…" without a worker boundary. Yield the event loop between PDF pages (`requestIdleCallback` / `setTimeout(0)`) to keep input handlers responsive on large documents.
 
 ### 4.2 Image Preprocessing
 
@@ -238,6 +243,18 @@ UIDAI Aadhaar cards have a secure QR containing encrypted demographic data. Pres
 
 Overlapping detections are merged via IoU threshold 0.3. Final mask layer is flattened before PDF re-embed.
 
+### 4.9 Manual Redaction (Deferred)
+
+**Status:** specced, not built. Build deferred until real-world miss rate or user reports demonstrate the escape hatch is needed. Current baselines (Aadhaar 80%, Face 87%, QR ~50% honest) suggest auto-detection is close but not complete.
+
+**UX:** a "Draw redaction" toggle above the preview enters draw-mode (crosshair cursor). User drags a rectangle on any page of `PreviewCanvas`; `Escape` aborts a drag mid-draw; `pointerup` below an 8px threshold discards (guards accidental clicks). Drawn rects appear in the same `DetectionToggleList` as auto-detections, with a delete affordance next to the checkbox.
+
+**Data model:** extend `DetectionKind` with `'manual'`. Manual detections use the existing `Detection` shape — `bbox === maskBbox`, `confidence: 1`, `value: 'manual'`. Coordinates are stored in raster space, not display space, so the existing flattener loops unchanged (see §5.4).
+
+**Touch on iOS Safari:** use `pointer` events (not `mouse`), call `setPointerCapture` in `pointerdown`. Without capture, drags are lost when the pointer leaves the overlay.
+
+**Trigger to build:** any of (a) support email citing an auto-detection miss, (b) an Aadhaar miss in the canonical real-sample harness that can't be recovered by preprocessing, (c) a B2B evaluator asks for it during the waitlist phase.
+
 ---
 
 ## 5. Masking & PDF Re-embed
@@ -272,6 +289,10 @@ Flow for all PDFs (regardless of whether input was native-text or scanned):
 5. Original text layer, hidden annotations, metadata all discarded
 
 **Trade-off accepted:** output PDF is 2–5× larger than input; Ctrl+F search no longer works in the output. Communicated to user in disclaimer text below download button: *"Output is image-only PDF to prevent text extraction of redacted content. Larger file size; no searchable text."*
+
+### 5.4 Manual Rect Handling
+
+Manual redactions (see §4.9) share the `Detection` shape and flow through `CanvasMaskRenderer` and `PdfFlattener` without a separate code path. The flattener loops detections per page; a rectangle drawn by the user is indistinguishable from an auto-detected one from its perspective.
 
 ---
 
@@ -490,7 +511,7 @@ doc-redact-in/
 
 ## 12. MVP Milestones
 
-### 12.1 Build Phase (5 weekends)
+### 12.1 Build Phase (5 weekends + W6 pending)
 
 | Weekend | Milestone                        | Deliverable                                                    |
 |---------|----------------------------------|----------------------------------------------------------------|
@@ -499,6 +520,7 @@ doc-redact-in/
 | **W3**  | Face + QR + MRZ + mobile camera  | face-api.js lazy-load + Gaussian blur, zxing-wasm QR detection, passport MRZ detector, mobile camera-capture flow with hero CTA |
 | **W4**  | Trust UX + flagship page + infra | Flagship `/mask-aadhaar-online` (~2,000 words), root page, `/how-it-works`, `/privacy` (plain-English), `/terms`, `/how-it-works`, CSP lockdown, Cloudflare Web Analytics wired, `/api-waitlist`, `/contact`, Cloudflare Email Routing (`hello@docredact.in`), no-outbound-network CI test, domain registered & pointed |
 | **W5**  | Polish + soft launch             | Detection toggle UI polish, multi-page preview with prev/next, unsupported-browser page, iOS Safari smoke test, GitHub repo public, AGPL headers on source files, initial launch to a forgiving technical audience |
+| **W6**  | Post-launch recall + progress UX *(pending)* | Wire `ImagePreprocessor` into image + PDF paths and re-measure on the 15-sample harness; add `onStage` progress callback through `runDetectionOnDocument`; yield event loop between PDF pages for responsiveness on large documents |
 
 ### 12.2 Launch Phase (3 weeks, sequenced)
 
@@ -556,7 +578,7 @@ Privacy policy (§14) discloses these in plain English.
 
 ### 13.4 Liability Disclaimers (in ToS and on Download Button)
 
-- Tool provides best-effort detection; user verifies output before sharing
+- Tool provides best-effort auto-detection; user is responsible for verifying output before sharing. Auto-detection recall is not 100% — users must review the toggle list carefully, and (when shipped, see §4.9) use manual-draw for any region the detectors miss.
 - No warranty of completeness (small fonts, rotated text, unusual layouts may be missed)
 - User is responsible for the final redacted document
 - Tool does not substitute for UIDAI-issued masked Aadhaar where regulatorily required
@@ -622,17 +644,37 @@ AGPL-3.0 project. External contributions welcome via Pull Requests. No CLA requi
 
 ---
 
-## 16. Validation Gates (Pre-Build)
+## 16. Pre-Build Validation Audit
 
-Before Weekend 1:
+These gates were set pre-build to decide whether the MVP was viable to start. They are recorded here with post-launch outcomes for audit. Ongoing validation (real-sample detection baselines, SEO traffic, etc.) is tracked in production-state notes, not in this RFC.
 
 1. **Tesseract accuracy spike (2 hours)** — run Tesseract.js English-only against 20 real Aadhaar photos (own + family, with consent). If raw accuracy < 60% and preprocessed accuracy projections don't close the gap to 85%+, rethink detector approach.
+
+   **Outcome:** Cleared at 80% recall on a 15-sample real-world harness (12/15); effective recall excluding a deliberate test-card rejection is ~86%. Preprocessing pipeline (§4.2) is implemented but not yet wired — the W6 milestone closes that gap and is expected to lift the number further.
+
 2. **Verhoeff validation reference** — hand-code and test Verhoeff against UIDAI's published 200-entry test vector. 100% pass required before Weekend 1 proceeds.
+
+   **Outcome:** Cleared. `tests/detection/Verhoeff.test.ts` passes (17 tests) including the UIDAI vector set. Verhoeff has remained the load-bearing false-positive filter post-launch.
+
 3. **Competitor spot-check** — upload same 5 test documents to iLovePDF, Smallpdf, Adobe Online. Confirm none auto-detect Indian-specific PII. Document the gap.
+
+   **Outcome:** Not formally run. Positioning in §1.1 was taken as indirect evidence, and no competitor has emerged post-launch matching the India-specific auto-detection wedge. Flagged here honestly; not a gap that now blocks anything.
+
 4. **SEO keyword volume** — pull Google Search Console estimates for the 5 target keywords via Keywords Everywhere / Ubersuggest. Proceed only if "mask aadhaar online" + "aadhaar masking tool" combined volume > 5K/month India.
+
+   **Outcome:** Not formally run. Post-launch, actual Google Search Console data replaces the pre-launch estimate as the relevant signal.
+
 5. **CSP feasibility** — confirm Tesseract.js, face-api.js, pdf.js, zxing-wasm all work under strict CSP with `wasm-unsafe-eval` only. Prototype a minimal page.
+
+   **Outcome:** Cleared stronger than required. Production CSP has no `unsafe-eval` at all; 29 inline-script SHA-256 hashes are auto-generated at build time via `scripts/csp-hashes.mjs`.
+
 6. **Cloudflare Pages + Next.js compatibility** — verify Next.js 14 static export deploys cleanly to Cloudflare Pages. Smoke test.
+
+   **Outcome:** Cleared. Production deploy live at `docredact.in` via Cloudflare Pages project `doc-redact-in`, auto-deploying on push to `main`.
+
 7. **Domain availability** — confirm `docredact.in` is available; if taken, decide rename before Weekend 1.
+
+   **Outcome:** Cleared. `docredact.in` registered; Cloudflare Email Routing active for `hello@docredact.in`; typo variant `docreduct.in` registered and 301-redirects to canonical.
 
 ---
 
@@ -671,10 +713,12 @@ Response headers:
 
 ---
 
-## 18. Open Questions (Remaining After Clarifying Review)
+## 18. Decided (Formerly Open Questions)
 
-- [ ] Detection confidence surfacing: show users a confidence score per detection, or keep it binary? (Lean: binary for MVP; add confidence in month 2 if support requests demand it)
-- [ ] Tesseract language data size optimization: ship only digits-tuned English model (~2MB vs default 4MB)?
-- [ ] Open-source CLA — defer until external contributions materialize
-- [ ] Launch day timing within each week — weekday vs weekend posting for maximum Reddit / HN / PH reach?
-- [ ] Whether to pre-publish a "launch announcement" blog post or let the product speak for itself at Show HN
+Each item below was an open question at v2; all are now decided.
+
+- **Detection confidence surfacing: show score per detection, or binary?** — Binary. Per-detection OCR confidence is already visible in the toggle list subtext; no evidence from real-sample runs that promoting it to a primary affordance would change user behavior. Revisit if support messages ask "why did you mask this?".
+- **Tesseract language data — ship digits-tuned English model (~2MB) instead of the default (~4MB)?** — No. PAN and MRZ aren't digits-only, and line-grouping in `AadhaarDetector.tokensByLine` relies on surrounding tokens. A digits-tuned model would regress recall on exactly the samples the detectors already miss. The 2MB saving is below the noise floor because Tesseract is lazy-loaded on first file drop, not on initial page load.
+- **Open-source CLA?** — No. AGPL-3.0 is sufficient at solo-maintainer scale; a CLA adds contribution friction without benefit. Revisit only on a substantial external PR or a dual-license decision for the B2B tier.
+- **Launch day timing — weekday vs. weekend for HN / Reddit / PH?** — Moot. Launch W1 shipped Sunday 2026-05-03. Launch W2/W3 timing is an ops detail, not an RFC-level question.
+- **Pre-publish a "launch announcement" blog post?** — No. There is no pre-existing audience to land on; `/how-it-works` already serves as the "what is this" explainer; the Show HN thread itself is the launch narrative. A separate blog would split attention, not focus it.
