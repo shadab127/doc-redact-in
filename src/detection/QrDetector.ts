@@ -25,26 +25,35 @@ export interface ZxingResult {
 }
 
 interface ZxingModule {
-  readBarcodesFromImageData(
+  readBarcodes(
     img: ImageData,
     opts: { tryHarder: boolean; formats: string[] }
   ): Promise<ZxingResult[]>;
 }
 
-interface ZxingOverrideApi {
-  setZXingModuleOverrides(overrides: {
-    locateFile: (p: string, prefix: string) => string;
-  }): void;
+interface ZxingV3Api {
+  prepareZXingModule(options: {
+    overrides: { locateFile: (p: string, prefix: string) => string };
+    fireImmediately: true;
+  }): Promise<unknown>;
 }
 
 async function loadZxing(): Promise<ZxingModule> {
-  const mod = (await import('zxing-wasm')) as unknown as ZxingModule &
-    ZxingOverrideApi;
+  const mod = (await import('zxing-wasm')) as unknown as ZxingModule & ZxingV3Api;
   // Redirect the lazy WASM fetch from the upstream jsdelivr CDN to our own
   // origin. Required to keep CSP's connect-src 'self' intact and to preserve
   // the "nothing leaves your device" privacy invariant.
-  mod.setZXingModuleOverrides({
-    locateFile: (filePath) => `/vendor/zxing/${filePath}`,
+  //
+  // `fireImmediately: true` actually instantiates the WASM module up front.
+  // Without it the module loads on the first readBarcodes() call, which on
+  // slow (mobile/cellular) connections races with the caller and throws
+  // "Cannot read properties of undefined (reading 'buffer')" deep inside
+  // Emscripten when the call arrives before the buffer is ready.
+  await mod.prepareZXingModule({
+    overrides: {
+      locateFile: (filePath) => `/vendor/zxing/${filePath}`,
+    },
+    fireImmediately: true,
   });
   return mod;
 }
@@ -85,7 +94,7 @@ export function createQrDetectorRunner(): QrDetectorRunner {
     async detect(canvas) {
       const zxing = await (mod ??= loadZxing());
       const imgData = canvasToImageData(canvas);
-      const results = await zxing.readBarcodesFromImageData(imgData, {
+      const results = await zxing.readBarcodes(imgData, {
         tryHarder: true,
         formats: ['QRCode'],
       });
