@@ -341,6 +341,65 @@ a { color: var(--brand); }
   white-space: nowrap;
 }
 
+/* Collapsible technical-error disclosure shown under the friendly message.
+   Kept muted so non-technical users aren't alarmed; one tap reveals raw
+   error name/message/stack for diagnostic copy-paste. */
+.error-details {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.error-details summary {
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+  padding: 2px 0;
+}
+
+.error-details summary:hover {
+  color: var(--fg);
+}
+
+.error-details-body {
+  position: relative;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.error-details-body pre {
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg-soft);
+}
+
+.error-details-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.error-details-copy:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
 /* Trust line under the hero */
 .trust-line {
   font-size: 12px;

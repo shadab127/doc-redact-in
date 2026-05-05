@@ -47,9 +47,30 @@ test('corrupt PNG shows a friendly error, not a raw vendor string', async ({ pag
   const errorText = page.getByText("Couldn't read this image. Try a JPG or PNG export, or a clearer photo.");
   await expect(errorText).toBeVisible({ timeout: 5_000 });
 
-  // Must not leak raw vendor strings.
-  const bodyText = await page.locator('body').innerText();
-  expect(bodyText).not.toContain('source image');
-  expect(bodyText).not.toContain('MediaPipe');
-  expect(bodyText).not.toContain('decoded');
+  // Raw vendor strings must stay hidden while the disclosure is collapsed.
+  const visibleBodyText = await page.locator('body').innerText();
+  expect(visibleBodyText).not.toContain('source image');
+  expect(visibleBodyText).not.toContain('MediaPipe');
+  expect(visibleBodyText).not.toContain('decoded');
+
+  // Details disclosure is present (collapsed by default) so a user can
+  // reveal the raw error on demand without touching DevTools.
+  const details = page.getByTestId('error-details');
+  await expect(details).toBeVisible();
+  const openAttrBefore = await details.getAttribute('open');
+  expect(openAttrBefore).toBeNull();
+
+  // Expand it; the raw error text should now render.
+  await page.getByText('Show technical details').click();
+  const raw = page.getByTestId('error-details-raw');
+  await expect(raw).toBeVisible();
+  const rawText = await raw.innerText();
+  expect(rawText.length).toBeGreaterThan(5);
+  // Must contain some non-friendly error identifier — name, stack, or vendor hint.
+  expect(rawText).toMatch(/Error|DOMException|TypeError|decode|image/i);
+});
+
+test('error-details is absent on the idle / successful states', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('error-details')).toHaveCount(0);
 });

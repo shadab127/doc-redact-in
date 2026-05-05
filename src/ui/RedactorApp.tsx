@@ -30,6 +30,7 @@ import { createFaceDetectorRunner } from '@/src/detection/FaceDetector';
 import { createQrDetectorRunner } from '@/src/detection/QrDetector';
 import { flattenToImageOnlyPdf } from '@/src/masking/PdfFlattener';
 import { friendlyError } from './friendlyError';
+import { ErrorDetails, captureRawError, type RawError } from './ErrorDetails';
 
 // Hoisted so the face-api model weights and zxing WASM are fetched at most
 // once per browser tab — not re-loaded on every file selection.
@@ -144,7 +145,7 @@ export interface RedactorAppProps {
 export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
   const [status, setStatus] = useState<Status>('idle');
   const [state, setState] = useState<RedactionState | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ friendly: string; raw: RawError } | null>(null);
   const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map());
   const [previewPageIndex, setPreviewPageIndex] = useState<number>(0);
   const isMobile = useIsMobile();
@@ -161,7 +162,7 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
       setEnabled(defaultEnabledMap(next.result.pages));
       setStatus('done');
     } catch (e) {
-      setError(friendlyError(e));
+      setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
   };
@@ -183,7 +184,7 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
           });
       await onFile(file);
     } catch (e) {
-      setError(friendlyError(e));
+      setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
   };
@@ -214,7 +215,7 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
       triggerDownload(pdfBytes, redactedFilename(state.fileName));
       setStatus('done');
     } catch (e) {
-      setError(friendlyError(e));
+      setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
   };
@@ -284,7 +285,12 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
         {status === 'idle' && 'Choose a file to begin.'}
         {status === 'running' && `Scanning ${state?.fileName ?? ''}…`}
         {status === 'downloading' && 'Building flattened PDF…'}
-        {status === 'error' && error}
+        {status === 'error' && error && (
+          <>
+            <div>{error.friendly}</div>
+            <ErrorDetails raw={error.raw} />
+          </>
+        )}
         {status === 'done' && state && (
           <>
             Found <strong>{totalDetections}</strong> detection
