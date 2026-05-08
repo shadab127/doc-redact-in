@@ -107,16 +107,20 @@ async function measureImageSource(
 async function runDetectors(
   canvas: HTMLCanvasElement | ImageBitmap | Blob | null,
   ocrInput: OCRInput,
-  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner }
+  runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner },
+  onStage?: (stage: string, pageIndex?: number, pageTotal?: number) => void,
+  pageIndex?: number,
+  pageTotal?: number
 ): Promise<Detection[]> {
   const tokensPromise = runners.ocr.recognize(ocrInput);
 
   const canvasForVisual = canvas && !(canvas instanceof Blob) ? canvas : null;
+
   const facePromise = canvasForVisual && runners.face
-    ? runners.face.detect(canvasForVisual)
+    ? (onStage?.('Detecting faces…', pageIndex, pageTotal), runners.face.detect(canvasForVisual))
     : Promise.resolve<Detection[]>([]);
   const qrPromise = canvasForVisual && runners.qr
-    ? runners.qr.detect(canvasForVisual)
+    ? (onStage?.('Scanning QR code…', pageIndex, pageTotal), runners.qr.detect(canvasForVisual))
     : Promise.resolve<Detection[]>([]);
 
   const [tokens, faces, qrs] = await Promise.all([tokensPromise, facePromise, qrPromise]);
@@ -126,14 +130,15 @@ async function runDetectors(
 async function runOnImage(
   image: OCRInput,
   runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner },
-  opts: { autoRotate: boolean } = { autoRotate: false }
+  opts: { autoRotate: boolean; onStage?: (stage: string, pageIndex?: number, pageTotal?: number) => void } = { autoRotate: false }
 ): Promise<DetectionResult & { effectiveCanvas?: HTMLCanvasElement; rotationApplied?: ProbeRotation }> {
   const started = Date.now();
   const canvasLike =
     image instanceof Blob || typeof image === 'string' ? null : (image as HTMLCanvasElement | ImageBitmap);
+  opts.onStage?.('Running OCR…');
   const [source, detections] = await Promise.all([
     measureImageSource(image),
-    runDetectors(canvasLike, image, runners),
+    runDetectors(canvasLike, image, runners, opts.onStage),
   ]);
 
   // If auto-rotate is enabled, the upright pass had no Verhoeff-valid text
@@ -147,7 +152,8 @@ async function runOnImage(
     const winning = await probeImageRotation(canvasLike, runners.ocr);
     if (winning) {
       const rotated = rotateCanvas(canvasLike, winning);
-      const rotatedDetections = await runDetectors(rotated, rotated, runners);
+      opts.onStage?.('Running OCR…');
+      const rotatedDetections = await runDetectors(rotated, rotated, runners, opts.onStage);
       return {
         detections: rotatedDetections,
         sourceWidth: rotated.width,
@@ -172,7 +178,8 @@ async function runOnPdf(
   runners: { ocr: OCRRunner; face?: FaceDetectorRunner; qr?: QrDetectorRunner },
   pipelineFactory: PdfPipelineFactory,
   scale: number,
-  onRaster?: (raster: RasterizedPageLike, pageIndex: number) => void
+  onRaster?: (raster: RasterizedPageLike, pageIndex: number) => void,
+  onStage?: (stage: string, pageIndex?: number, pageTotal?: number) => void
 ): Promise<DocumentDetectionResult> {
   const totalStart = Date.now();
   const buf = new Uint8Array(await blob.arrayBuffer());
@@ -182,9 +189,11 @@ async function runOnPdf(
   try {
     for (let i = 0; i < info.numPages; i++) {
       const pageStart = Date.now();
+      onStage?.(`Rasterising page ${i + 1}/${info.numPages}…`, i, info.numPages);
       const raster = await pipeline.rasterize(i, scale);
       onRaster?.(raster, i);
-      const detections = await runDetectors(raster.canvas, raster.canvas, runners);
+      onStage?.(`Running OCR…`, i, info.numPages);
+      const detections = await runDetectors(raster.canvas, raster.canvas, runners, onStage, i, info.numPages);
       pages.push({
         pageIndex: i,
         detections,
@@ -227,6 +236,7 @@ export async function runDetection(
 export interface RunDocumentOptions extends RunDetectionOptions {
   pdfPipeline?: PdfPipelineFactory;
   onRaster?: (raster: RasterizedPageLike, pageIndex: number) => void;
+  onStage?: (stage: string, pageIndex?: number, pageTotal?: number) => void;
 }
 
 export async function runDetectionOnDocument(
@@ -244,11 +254,12 @@ export async function runDetectionOnDocument(
     if (!opts.pdfPipeline) {
       throw new Error('PDF input requires opts.pdfPipeline to be provided.');
     }
-    return runOnPdf(input as Blob, runners, opts.pdfPipeline, scale, opts.onRaster);
+    return runOnPdf(input as Blob, runners, opts.pdfPipeline, scale, opts.onRaster, opts.onStage);
   }
 
   const imageResult = await runOnImage(input as OCRInput, runners, {
     autoRotate: opts.autoRotateImage ?? false,
+    onStage: opts.onStage,
   });
   // If the probe rotated the image, publish the rotated canvas so the UI's
   // preview and the PDF flattener operate on the same pixels the detections

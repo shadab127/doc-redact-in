@@ -213,9 +213,108 @@ a { color: var(--brand); }
   height: 16px;
 }
 
+/* Mobile hamburger menu */
+.mobile-menu-root {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-subtle);
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0;
+  transition: background 150ms, border-color 150ms;
+}
+
+.mobile-menu-toggle:hover {
+  background: var(--brand-surface);
+  border-color: var(--brand);
+}
+
+.mobile-nav {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  padding: 8px;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  z-index: 20;
+}
+
+.mobile-nav--open {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mobile-nav-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 120ms, color 120ms;
+}
+
+.mobile-nav-link:hover {
+  background: var(--brand-surface);
+  color: var(--fg);
+}
+
+.mobile-nav-cta {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  background: linear-gradient(180deg, var(--brand-soft) 0%, var(--brand) 100%);
+  box-shadow: 0 4px 12px -6px var(--brand-glow);
+  transition: filter 150ms;
+}
+
+.mobile-nav-cta:hover {
+  filter: brightness(1.07);
+}
+
+/* Hide the header CTA on mobile — the mobile menu exposes "Try it now" */
+.site-header-cta {
+  display: none;
+}
+
 @media (min-width: 768px) {
+  .mobile-menu-root {
+    display: none;
+  }
   .site-header-nav {
     display: flex;
+  }
+  .site-header-cta {
+    display: inline-flex;
+    align-items: center;
   }
   .site-header-cta,
   .theme-toggle {

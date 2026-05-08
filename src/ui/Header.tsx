@@ -6,6 +6,7 @@
  * See LICENSE file in the project root for full text.
  */
 import Link from 'next/link';
+import { MobileMenu } from './MobileMenu';
 import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
@@ -31,6 +32,7 @@ export function Header() {
         <Link href="/#redactor" className="site-header-cta">
           Try it now
         </Link>
+        <MobileMenu />
       </div>
     </header>
   );

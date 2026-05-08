@@ -97,7 +97,10 @@ async function rasterizeSvgBlobToPngFile(
   }
 }
 
-async function processDocument(file: File): Promise<RedactionState> {
+async function processDocument(
+  file: File,
+  onStage: (stage: string) => void
+): Promise<RedactionState> {
   const face = sharedFaceRunner;
   const qr = sharedQrRunner;
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
@@ -111,10 +114,12 @@ async function processDocument(file: File): Promise<RedactionState> {
       onRaster: (r) => {
         rasters.push(r);
       },
+      onStage: (stage) => onStage(stage),
     });
     const pagePtSizes = Array.from(result.pageSizesPt ?? []);
     return { result, rasters, fileName: file.name, pagePtSizes };
   }
+  onStage('Loading image…');
   const raster = await rasterImage(file);
   let effectiveRaster = raster;
   const result = await runDetectionOnDocument(raster.canvas, {
@@ -126,6 +131,7 @@ async function processDocument(file: File): Promise<RedactionState> {
       // PDF flattening operate on the same pixels detections were made on.
       effectiveRaster = r;
     },
+    onStage: (stage) => onStage(stage),
   });
   return {
     result,
@@ -148,6 +154,7 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
   const [error, setError] = useState<{ friendly: string; raw: RawError } | null>(null);
   const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map());
   const [previewPageIndex, setPreviewPageIndex] = useState<number>(0);
+  const [stage, setStage] = useState<string>('');
   const isMobile = useIsMobile();
   const busy = status === 'running' || status === 'downloading';
 
@@ -156,8 +163,9 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
     setError(null);
     setState(null);
     setPreviewPageIndex(0);
+    setStage('');
     try {
-      const next = await processDocument(file);
+      const next = await processDocument(file, setStage);
       setState(next);
       setEnabled(defaultEnabledMap(next.result.pages));
       setStatus('done');
@@ -252,6 +260,28 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
           <div style={{ marginTop: 12 }}>
             <DropZone onFile={onFile} disabled={busy} />
           </div>
+          {sampleUrl && (
+            <div style={{ marginTop: 10, textAlign: 'center' }}>
+              <button
+                onClick={loadSample}
+                disabled={busy}
+                data-testid="try-sample-btn"
+                style={{
+                  background: 'var(--surface-subtle)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 10,
+                  color: 'var(--fg)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  padding: '8px 16px',
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >
+                Try a sample ID →
+              </button>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -283,7 +313,14 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
 
       <div style={{ marginTop: 16, fontSize: 14, color: 'var(--muted)' }}>
         {status === 'idle' && 'Choose a file to begin.'}
-        {status === 'running' && `Scanning ${state?.fileName ?? ''}…`}
+        {status === 'running' && (
+        <>
+          <div>{`Scanning ${state?.fileName ?? ''}…`}</div>
+          {stage && (
+            <div style={{ fontSize: 12, marginTop: 4, color: 'var(--muted)' }}>{stage}</div>
+          )}
+        </>
+      )}
         {status === 'downloading' && 'Building flattened PDF…'}
         {status === 'error' && error && (
           <>
