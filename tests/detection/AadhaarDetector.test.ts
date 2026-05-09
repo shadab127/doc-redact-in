@@ -121,4 +121,42 @@ describe('detectAadhaar', () => {
     expect(ratio).toBeGreaterThan(0.55);
     expect(ratio).toBeLessThan(0.75);
   });
+
+  it('triplet path still fires when the last group has trailing punctuation', () => {
+    const aadhaar = mkValidAadhaar(11);
+    const tokens: OCRToken[] = [
+      tok(aadhaar.slice(0, 4), 10, 0),
+      tok(aadhaar.slice(4, 8), 60, 0),
+      tok(`${aadhaar.slice(8, 12)}-`, 110, 0),
+    ];
+    const result = detectAadhaar(tokens);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.value).toBe(aadhaar);
+  });
+
+  it('keeps both detections when the same number appears in two spatially separate lines', () => {
+    const aadhaar = mkValidAadhaar(55);
+    const formatted = `${aadhaar.slice(0, 4)} ${aadhaar.slice(4, 8)} ${aadhaar.slice(8, 12)}`;
+    const tokens: OCRToken[] = [
+      tok(formatted, 20, 0, { bbox: { x: 20, y: 100, w: 140, h: 20 } }),
+      tok(formatted, 20, 1, { bbox: { x: 20, y: 400, w: 140, h: 20 } }),
+    ];
+    const result = detectAadhaar(tokens);
+    expect(result).toHaveLength(2);
+    expect(result[0]!.value).toBe(aadhaar);
+    expect(result[1]!.value).toBe(aadhaar);
+  });
+
+  it('collapses the triplet and inline paths when both fire on the same physical row', () => {
+    const aadhaar = mkValidAadhaar(91);
+    const formatted = `${aadhaar.slice(0, 4)} ${aadhaar.slice(4, 8)} ${aadhaar.slice(8, 12)}`;
+    const tokens: OCRToken[] = [
+      tok(aadhaar.slice(0, 4), 10, 0, { bbox: { x: 10, y: 100, w: 40, h: 20 } }),
+      tok(aadhaar.slice(4, 8), 60, 0, { bbox: { x: 60, y: 100, w: 40, h: 20 } }),
+      tok(aadhaar.slice(8, 12), 110, 0, { bbox: { x: 110, y: 100, w: 40, h: 20 } }),
+      tok(formatted, 10, 0, { bbox: { x: 10, y: 100, w: 140, h: 20 } }),
+    ];
+    const result = detectAadhaar(tokens);
+    expect(result).toHaveLength(1);
+  });
 });

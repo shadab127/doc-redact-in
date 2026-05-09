@@ -12,6 +12,13 @@ import { unionBbox } from './types';
 const GROUP_RE = /^\d{4}$/;
 const INLINE_RE = /\b(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})\b/g;
 
+// OCR sometimes glues punctuation to a digit group ("5552-", ".8025").
+// Strip leading/trailing non-digits so those tokens still match GROUP_RE.
+function digitsOnlyIfPureGroup(text: string): string | null {
+  const stripped = text.replace(/^\D+/, '').replace(/\D+$/, '');
+  return GROUP_RE.test(stripped) ? stripped : null;
+}
+
 function tokensByLine(tokens: OCRToken[]): Map<number, OCRToken[]> {
   const by = new Map<number, OCRToken[]>();
   for (const t of tokens) {
@@ -30,10 +37,11 @@ function tryTripletStartingAt(line: OCRToken[], idx: number): Detection | null {
   const b = line[idx + 1];
   const c = line[idx + 2];
   if (!a || !b || !c) return null;
-  if (!GROUP_RE.test(a.text) || !GROUP_RE.test(b.text) || !GROUP_RE.test(c.text)) {
-    return null;
-  }
-  const candidate = a.text + b.text + c.text;
+  const ga = digitsOnlyIfPureGroup(a.text);
+  const gb = digitsOnlyIfPureGroup(b.text);
+  const gc = digitsOnlyIfPureGroup(c.text);
+  if (!ga || !gb || !gc) return null;
+  const candidate = ga + gb + gc;
   if (!isValidVerhoeff(candidate)) return null;
 
   const bbox: BoundingBox = unionBbox(unionBbox(a.bbox, b.bbox), c.bbox);
@@ -87,6 +95,20 @@ function estimateFirstEightSubBox(
   };
 }
 
+// Dedup by spatial overlap rather than by value: two separate physical
+// instances of the same Aadhaar number (e.g. front and back of a combined
+// card photo) must both produce masks. We only collapse detections that
+// spatially overlap — that covers the case where both the triplet and
+// inline paths fire on the same OCR row.
+function bboxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
+  return (
+    a.x < b.x + b.w &&
+    b.x < a.x + a.w &&
+    a.y < b.y + b.h &&
+    b.y < a.y + a.h
+  );
+}
+
 export function detectAadhaar(tokens: OCRToken[]): Detection[] {
   const out: Detection[] = [];
 
@@ -99,7 +121,11 @@ export function detectAadhaar(tokens: OCRToken[]): Detection[] {
 
   for (const t of tokens) {
     const d = tryInlineMatches(t);
-    if (d && !out.some((e) => e.value === d.value)) out.push(d);
+    if (!d) continue;
+    const duplicate = out.some(
+      (e) => e.value === d.value && bboxesOverlap(e.bbox, d.bbox)
+    );
+    if (!duplicate) out.push(d);
   }
 
   return out;
