@@ -8,6 +8,7 @@
 import { detectAadhaar } from './AadhaarDetector';
 import { detectPan } from './PanDetector';
 import { detectPassportMrz } from './PassportMrzDetector';
+import { preprocessForOCR } from './ImagePreprocessor';
 import { createOCRRunner, type OCRInput, type OCRRunner } from './OCRRunner';
 import type { FaceDetectorRunner } from './FaceDetector';
 import type { QrDetectorRunner } from './QrDetector';
@@ -79,6 +80,48 @@ function textDetections(tokens: OCRToken[]): Detection[] {
   ];
 }
 
+function hasTextHit(detections: readonly Detection[]): boolean {
+  return detections.some(
+    (d) => d.kind === 'aadhaar' || d.kind === 'pan' || d.kind === 'passport_mrz'
+  );
+}
+
+/**
+ * Build a preprocessed canvas (grayscale + gaussian blur + global CLAHE) from
+ * a source canvas/ImageBitmap. Used only for a fallback OCR pass when the
+ * upright raw OCR returned zero text hits — the Aadhaar spike showed CLAHE is
+ * too aggressive on already-well-exposed photos to apply by default, but
+ * materially rescues washed-out screenshots where raw OCR sees nothing.
+ */
+function preprocessCanvasForOCR(
+  source: HTMLCanvasElement | ImageBitmap
+): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  const w = source.width;
+  const h = source.height;
+  if (!w || !h) return null;
+  const src = document.createElement('canvas');
+  src.width = w;
+  src.height = h;
+  const srcCtx = src.getContext('2d');
+  if (!srcCtx) return null;
+  srcCtx.drawImage(source, 0, 0);
+  let imageData: ImageData;
+  try {
+    imageData = srcCtx.getImageData(0, 0, w, h);
+  } catch {
+    return null; // cross-origin tainted canvas
+  }
+  const processed = preprocessForOCR({ data: imageData.data, width: w, height: h });
+  const out = document.createElement('canvas');
+  out.width = w;
+  out.height = h;
+  const outCtx = out.getContext('2d');
+  if (!outCtx) return null;
+  outCtx.putImageData(new ImageData(processed.data, w, h), 0, 0);
+  return out;
+}
+
 async function measureImageSource(
   input: OCRInput
 ): Promise<{ width: number; height: number }> {
@@ -141,14 +184,32 @@ async function runOnImage(
     runDetectors(canvasLike, image, runners, opts.onStage),
   ]);
 
-  // If auto-rotate is enabled, the upright pass had no Verhoeff-valid text
-  // hits, and we have a canvas-like source to rotate, probe 90/180/270.
-  // Rationale: the probe runs at most 3 downscaled OCR passes; skipping it
-  // when upright already found text keeps the happy-path cost at zero.
-  const hasText = detections.some(
-    (d) => d.kind === 'aadhaar' || d.kind === 'pan' || d.kind === 'passport_mrz'
-  );
-  if (opts.autoRotate && !hasText && canvasLike) {
+  // Fallback 1: if the upright raw pass found no text and we have a canvas,
+  // retry OCR on a contrast-enhanced copy (CLAHE). This rescues washed-out
+  // screenshots where raw Tesseract reads the digit row as garbage. We only
+  // swap in text detections from the fallback — face/QR results from the
+  // raw pass are authoritative and already applied to the correct pixels.
+  let effectiveDetections = detections;
+  if (!hasTextHit(effectiveDetections) && canvasLike) {
+    const preprocessed = preprocessCanvasForOCR(canvasLike);
+    if (preprocessed) {
+      opts.onStage?.('Retrying OCR on enhanced image…');
+      const tokens = await runners.ocr.recognize(preprocessed);
+      const textFromPreprocessed = textDetections(tokens);
+      if (textFromPreprocessed.length > 0) {
+        const nonText = detections.filter(
+          (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
+        );
+        effectiveDetections = [...textFromPreprocessed, ...nonText];
+      }
+    }
+  }
+
+  // Fallback 2: if auto-rotate is enabled, still no text hit, and the source
+  // can be rotated, probe 90/180/270. Rationale: the probe runs up to 3
+  // downscaled OCR passes; skipping it when text is already found keeps the
+  // happy-path cost at zero.
+  if (opts.autoRotate && !hasTextHit(effectiveDetections) && canvasLike) {
     const winning = await probeImageRotation(canvasLike, runners.ocr);
     if (winning) {
       const rotated = rotateCanvas(canvasLike, winning);
@@ -166,7 +227,7 @@ async function runOnImage(
   }
 
   return {
-    detections,
+    detections: effectiveDetections,
     sourceWidth: source.width,
     sourceHeight: source.height,
     elapsedMs: Date.now() - started,
