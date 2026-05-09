@@ -124,6 +124,118 @@ function iou(a: BoundingBox, b: BoundingBox): number {
 }
 
 /**
+ * Compute the fraction of `face`'s area that is covered by the union of
+ * the supplied axis-aligned rectangles (`textBoxes`).
+ *
+ * We scan at 1-pixel granularity along the x-axis using a sweep-line over
+ * the text boxes clipped to the face rectangle, then accumulate covered
+ * columns. This avoids double-counting overlapping text boxes without
+ * needing a full polygon-union implementation.
+ *
+ * Exported for unit testing only — callers should use
+ * `rejectFacesCoveredByOCR`.
+ */
+export function ocrCoverageRatio(face: BoundingBox, textBoxes: readonly BoundingBox[]): number {
+  const faceArea = face.w * face.h;
+  if (faceArea <= 0 || textBoxes.length === 0) return 0;
+
+  // Clip each text box to the face bbox and compute covered area via a
+  // column sweep (integer x positions). We build a sorted list of
+  // [colStart, colEnd) intervals clipped to [face.x, face.x + face.w),
+  // merge overlapping intervals, and sum their widths × covered row span.
+  //
+  // To keep this O(n log n) and not O(w × h), we do a 2D sweep:
+  //   for each column x in [face.x, face.x + face.w):
+  //     covered_height(x) = length of union of [row intervals from text boxes that contain x]
+  //   coveredArea = Σ covered_height(x)
+  //
+  // With real Aadhaar images at ~1000×600 px the face box is ~120×150 px,
+  // so the inner sweep is at most 120 iterations of n≤~50 intervals — fast.
+
+  const fx = face.x;
+  const fy = face.y;
+  const fr = face.x + face.w;
+  const fb = face.y + face.h;
+
+  // Precompute clipped boxes once
+  const clipped: Array<{ x1: number; x2: number; y1: number; y2: number }> = [];
+  for (const t of textBoxes) {
+    const cx1 = Math.max(fx, t.x);
+    const cx2 = Math.min(fr, t.x + t.w);
+    const cy1 = Math.max(fy, t.y);
+    const cy2 = Math.min(fb, t.y + t.h);
+    if (cx2 > cx1 && cy2 > cy1) {
+      clipped.push({ x1: cx1, x2: cx2, y1: cy1, y2: cy2 });
+    }
+  }
+  if (clipped.length === 0) return 0;
+
+  let coveredArea = 0;
+  for (let x = fx; x < fr; x++) {
+    // Collect y-intervals from all clipped boxes that span column x
+    const intervals: Array<[number, number]> = [];
+    for (const c of clipped) {
+      if (x >= c.x1 && x < c.x2) {
+        intervals.push([c.y1, c.y2]);
+      }
+    }
+    if (intervals.length === 0) continue;
+    // Merge y-intervals and sum their length
+    intervals.sort((a, b) => a[0] - b[0]);
+    let mergedStart = intervals[0]![0];
+    let mergedEnd = intervals[0]![1];
+    for (let i = 1; i < intervals.length; i++) {
+      const [s, e] = intervals[i]!;
+      if (s < mergedEnd) {
+        mergedEnd = Math.max(mergedEnd, e);
+      } else {
+        coveredArea += mergedEnd - mergedStart;
+        mergedStart = s;
+        mergedEnd = e;
+      }
+    }
+    coveredArea += mergedEnd - mergedStart;
+  }
+
+  return coveredArea / faceArea;
+}
+
+/**
+ * Post-filter that drops face detections whose bounding box is substantially
+ * covered by OCR-token bounding boxes (i.e. the "face" is sitting on top of a
+ * text block and is therefore a false positive).
+ *
+ * Rule: reject face F when
+ *   (area of F covered by union of OCR token bboxes) / area(F) >= coverageThreshold
+ *
+ * Default threshold 0.5 means "50 % or more of the face box is text → reject".
+ * This was chosen per RFC §4.8: the known FP scenario (text blocks in
+ * e-Aadhaar PDFs scoring as faces at minConfidence 0.3) would have near-100 %
+ * OCR coverage, while a genuine face photo on a printed card should have
+ * near-0 % OCR coverage. The 0.5 threshold sits between those two extremes.
+ *
+ * CONTRACT:
+ *   - Input `faces` must already be merged (short+full-range dedup). This
+ *     function runs AFTER `mergeFaceDetections`, not instead of it.
+ *   - `ocrTokens` is the raw Tesseract token list for the same canvas.
+ *   - Returns a (possibly shorter) subset of `faces` in the same order.
+ *   - Never adds, modifies, or reorders detections — filter only.
+ *
+ * NOTE: real-data verification against the 15-sample baseline has NOT been
+ * done yet (MediaPipe cannot run in Node; see spikes/report-face.md §2).
+ * Enable this filter behind a feature flag until in-browser confirmation.
+ */
+export function rejectFacesCoveredByOCR(
+  faces: Detection[],
+  ocrTokens: readonly { bbox: BoundingBox }[],
+  coverageThreshold = 0.5
+): Detection[] {
+  if (faces.length === 0 || ocrTokens.length === 0) return faces;
+  const tokenBoxes = ocrTokens.map((t) => t.bbox);
+  return faces.filter((f) => ocrCoverageRatio(f.bbox, tokenBoxes) < coverageThreshold);
+}
+
+/**
  * Deduplicate face detections by IoU. When two boxes overlap above the
  * threshold, keep the one with the higher confidence — we assume both
  * models are looking at the same face and the more confident model has
