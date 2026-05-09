@@ -86,6 +86,65 @@ function hasTextHit(detections: readonly Detection[]): boolean {
   );
 }
 
+function hasAadhaarHit(detections: readonly Detection[]): boolean {
+  return detections.some((d) => d.kind === 'aadhaar');
+}
+
+/**
+ * Build a horizontal band of the source canvas (no horizontal cropping),
+ * translating OCR bboxes back into source coordinates.
+ *
+ * Rationale: on multi-page PDFs at scale=3, the full-page Tesseract pass
+ * can misread a small digit row (the Aadhaar number sits near the middle
+ * of the card and occupies only ~2% of page height). Slicing the page
+ * into horizontal bands and re-OCRing each band lets Tesseract's layout
+ * analyzer focus on a smaller region where the same digits occupy a
+ * larger relative fraction — it reads them correctly.
+ */
+interface BandOrigin {
+  x: number;
+  y: number;
+  scale: number;
+}
+function buildHorizontalBandCanvas(
+  source: HTMLCanvasElement | ImageBitmap,
+  y0Frac: number,
+  y1Frac: number
+): (HTMLCanvasElement & { __bandOrigin: BandOrigin }) | null {
+  if (typeof document === 'undefined') return null;
+  const y0 = Math.max(0, Math.floor(source.height * y0Frac));
+  const y1 = Math.min(source.height, Math.ceil(source.height * y1Frac));
+  const bandH = y1 - y0;
+  if (bandH <= 0) return null;
+  const out = document.createElement('canvas') as HTMLCanvasElement & { __bandOrigin: BandOrigin };
+  out.width = source.width;
+  out.height = bandH;
+  const ctx = out.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(source as CanvasImageSource, 0, y0, source.width, bandH, 0, 0, source.width, bandH);
+  out.__bandOrigin = { x: 0, y: y0, scale: 1 };
+  return out;
+}
+function translateTokensFromBand(
+  tokens: readonly OCRToken[],
+  band: HTMLCanvasElement & { __bandOrigin: BandOrigin },
+  lineIdBase: number
+): OCRToken[] {
+  const origin = band.__bandOrigin;
+  const s = 1 / origin.scale;
+  return tokens.map((t) => ({
+    text: t.text,
+    bbox: {
+      x: origin.x + t.bbox.x * s,
+      y: origin.y + t.bbox.y * s,
+      w: t.bbox.w * s,
+      h: t.bbox.h * s,
+    },
+    confidence: t.confidence,
+    lineId: lineIdBase + t.lineId,
+  }));
+}
+
 /**
  * Build a preprocessed canvas (grayscale + gaussian blur + global CLAHE) from
  * a source canvas/ImageBitmap. Used only for a fallback OCR pass when the
@@ -154,7 +213,7 @@ async function runDetectors(
   onStage?: (stage: string, pageIndex?: number, pageTotal?: number) => void,
   pageIndex?: number,
   pageTotal?: number
-): Promise<Detection[]> {
+): Promise<{ detections: Detection[]; tokens: OCRToken[] }> {
   const tokensPromise = runners.ocr.recognize(ocrInput);
 
   const canvasForVisual = canvas && !(canvas instanceof Blob) ? canvas : null;
@@ -167,7 +226,47 @@ async function runDetectors(
     : Promise.resolve<Detection[]>([]);
 
   const [tokens, faces, qrs] = await Promise.all([tokensPromise, facePromise, qrPromise]);
-  return [...textDetections(tokens), ...faces, ...qrs];
+  const text = textDetections(tokens);
+
+  return { detections: [...text, ...faces, ...qrs], tokens };
+}
+
+/**
+ * Last-chance Aadhaar recovery: slice the source canvas into 4 overlapping
+ * horizontal bands and re-OCR each band. On PDFs where the card occupies
+ * only a small fraction of the rasterized page (e.g. the back-only panel
+ * of an e-Aadhaar printout), the full-page Tesseract pass can misread the
+ * digit row entirely. Running OCR on a taller, narrower band lets the
+ * layout analyzer lock onto the digits at a larger relative scale.
+ *
+ * Bands overlap by 50% so an Aadhaar row straddling a cut boundary is
+ * captured whole in at least one band. Stops on first Verhoeff-valid hit.
+ */
+async function recoverAadhaarFromBands(
+  canvas: HTMLCanvasElement | ImageBitmap,
+  tokens: readonly OCRToken[],
+  ocr: OCRRunner
+): Promise<Detection[] | null> {
+  // 4 overlapping bands: [0,0.4], [0.3,0.7], [0.6,1.0], plus the middle
+  // [0.2,0.8] as a wider catch-all. Each adds ~1-2s of OCR on the lower-
+  // resolution band, capped by the inherent Tesseract cost.
+  const bandFracs: Array<[number, number]> = [
+    [0.3, 0.7],
+    [0.0, 0.5],
+    [0.5, 1.0],
+  ];
+  let lineIdBase = (tokens.reduce((m, t) => Math.max(m, t.lineId), -1) ?? -1) + 1000;
+  for (const [y0, y1] of bandFracs) {
+    const band = buildHorizontalBandCanvas(canvas, y0, y1);
+    if (!band) continue;
+    const bandTokens = await ocr.recognize(band);
+    const translated = translateTokensFromBand(bandTokens, band, lineIdBase);
+    lineIdBase += 1000;
+    const merged = [...tokens, ...translated];
+    const refreshed = textDetections(merged);
+    if (hasAadhaarHit(refreshed)) return refreshed;
+  }
+  return null;
 }
 
 async function runOnImage(
@@ -179,17 +278,19 @@ async function runOnImage(
   const canvasLike =
     image instanceof Blob || typeof image === 'string' ? null : (image as HTMLCanvasElement | ImageBitmap);
   opts.onStage?.('Running OCR…');
-  const [source, detections] = await Promise.all([
+  const [source, firstRun] = await Promise.all([
     measureImageSource(image),
     runDetectors(canvasLike, image, runners, opts.onStage),
   ]);
+  let effectiveDetections = firstRun.detections;
+  let effectiveTokens = firstRun.tokens;
+  let effectiveCanvas: HTMLCanvasElement | ImageBitmap | null = canvasLike;
 
   // Fallback 1: if the upright raw pass found no text and we have a canvas,
   // retry OCR on a contrast-enhanced copy (CLAHE). This rescues washed-out
   // screenshots where raw Tesseract reads the digit row as garbage. We only
   // swap in text detections from the fallback — face/QR results from the
   // raw pass are authoritative and already applied to the correct pixels.
-  let effectiveDetections = detections;
   if (!hasTextHit(effectiveDetections) && canvasLike) {
     const preprocessed = preprocessCanvasForOCR(canvasLike);
     if (preprocessed) {
@@ -197,10 +298,11 @@ async function runOnImage(
       const tokens = await runners.ocr.recognize(preprocessed);
       const textFromPreprocessed = textDetections(tokens);
       if (textFromPreprocessed.length > 0) {
-        const nonText = detections.filter(
+        const nonText = effectiveDetections.filter(
           (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
         );
         effectiveDetections = [...textFromPreprocessed, ...nonText];
+        effectiveTokens = tokens;
       }
     }
   }
@@ -209,28 +311,49 @@ async function runOnImage(
   // can be rotated, probe 90/180/270. Rationale: the probe runs up to 3
   // downscaled OCR passes; skipping it when text is already found keeps the
   // happy-path cost at zero.
+  let rotationApplied: ProbeRotation | undefined;
+  let rotatedCanvas: HTMLCanvasElement | null = null;
   if (opts.autoRotate && !hasTextHit(effectiveDetections) && canvasLike) {
     const winning = await probeImageRotation(canvasLike, runners.ocr);
     if (winning) {
       const rotated = rotateCanvas(canvasLike, winning);
       opts.onStage?.('Running OCR…');
-      const rotatedDetections = await runDetectors(rotated, rotated, runners, opts.onStage);
-      return {
-        detections: rotatedDetections,
-        sourceWidth: rotated.width,
-        sourceHeight: rotated.height,
-        elapsedMs: Date.now() - started,
-        effectiveCanvas: rotated,
-        rotationApplied: winning,
-      };
+      const rotatedRun = await runDetectors(rotated, rotated, runners, opts.onStage);
+      effectiveDetections = rotatedRun.detections;
+      effectiveTokens = rotatedRun.tokens;
+      effectiveCanvas = rotated;
+      rotatedCanvas = rotated;
+      rotationApplied = winning;
     }
   }
 
+  // Fallback 3 (last): if still no Aadhaar detection, try the digit-row
+  // recovery pass on the now-effective canvas/tokens. Narrow digits like
+  // `1` sometimes get dropped by the default Tesseract layout segmenter;
+  // a PSM-7 + digit-whitelist re-OCR of each suspicious line recovers them.
+  if (!hasAadhaarHit(effectiveDetections) && effectiveCanvas) {
+    const recovered = await recoverAadhaarFromBands(
+      effectiveCanvas,
+      effectiveTokens,
+      runners.ocr
+    );
+    if (recovered) {
+      const nonText = effectiveDetections.filter(
+        (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
+      );
+      effectiveDetections = [...recovered, ...nonText];
+    }
+  }
+
+  const finalWidth = rotatedCanvas ? rotatedCanvas.width : source.width;
+  const finalHeight = rotatedCanvas ? rotatedCanvas.height : source.height;
   return {
     detections: effectiveDetections,
-    sourceWidth: source.width,
-    sourceHeight: source.height,
+    sourceWidth: finalWidth,
+    sourceHeight: finalHeight,
     elapsedMs: Date.now() - started,
+    effectiveCanvas: rotatedCanvas ?? undefined,
+    rotationApplied,
   };
 }
 
@@ -254,10 +377,35 @@ async function runOnPdf(
       const raster = await pipeline.rasterize(i, scale);
       onRaster?.(raster, i);
       onStage?.(`Running OCR…`, i, info.numPages);
-      const detections = await runDetectors(raster.canvas, raster.canvas, runners, onStage, i, info.numPages);
+      const { detections: pageDetections, tokens } = await runDetectors(
+        raster.canvas,
+        raster.canvas,
+        runners,
+        onStage,
+        i,
+        info.numPages
+      );
+      let finalDetections = pageDetections;
+      // Digit-row fallback for PDFs: same rescue as the image path. PDF
+      // rasterization at scale=3 occasionally produces small digits (when
+      // the card fills only a fraction of a high-res page), which
+      // Tesseract's default layout segmenter drops narrow characters from.
+      if (!hasAadhaarHit(finalDetections)) {
+        const recovered = await recoverAadhaarFromBands(
+          raster.canvas,
+          tokens,
+          runners.ocr
+        );
+        if (recovered) {
+          const nonText = finalDetections.filter(
+            (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
+          );
+          finalDetections = [...recovered, ...nonText];
+        }
+      }
       pages.push({
         pageIndex: i,
-        detections,
+        detections: finalDetections,
         sourceWidth: raster.width,
         sourceHeight: raster.height,
         elapsedMs: Date.now() - pageStart,
