@@ -8,6 +8,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DropZone } from './DropZone';
 import { CameraCapture } from './CameraCapture';
 import { useIsMobile } from './useIsMobile';
@@ -31,6 +32,13 @@ import { createQrDetectorRunner } from '@/src/detection/QrDetector';
 import { flattenToImageOnlyPdf } from '@/src/masking/PdfFlattener';
 import { friendlyError } from './friendlyError';
 import { ErrorDetails, captureRawError, type RawError } from './ErrorDetails';
+import { setManualHandoff, type ManualHandoff } from './manual/handoff';
+import type { UserBox } from './manual/types';
+import {
+  getRedactorSession,
+  setRedactorSession,
+  updateRedactorSession,
+} from './redactorSession';
 
 // Hoisted so the face-api model weights and zxing WASM are fetched at most
 // once per browser tab — not re-loaded on every file selection.
@@ -148,31 +156,77 @@ export interface RedactorAppProps {
   sampleUrl?: string;
 }
 
+function seedBoxId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
 export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
-  const [status, setStatus] = useState<Status>('idle');
-  const [state, setState] = useState<RedactionState | null>(null);
+  // Hydrate from the module-level store so the auto-detect result view
+  // survives navigating to /manual and back. Cleared only via "Start over".
+  const initial = getRedactorSession();
+
+  const [status, setStatus] = useState<Status>(initial ? 'done' : 'idle');
+  const [state, setState] = useState<RedactionState | null>(() =>
+    initial
+      ? {
+          result: initial.result,
+          rasters: initial.rasters,
+          fileName: initial.fileName,
+          pagePtSizes: initial.pagePtSizes,
+        }
+      : null
+  );
   const [error, setError] = useState<{ friendly: string; raw: RawError } | null>(null);
-  const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map());
-  const [previewPageIndex, setPreviewPageIndex] = useState<number>(0);
+  const [enabled, setEnabledLocal] = useState<Map<string, boolean>>(
+    () => (initial ? new Map(initial.enabled) : new Map())
+  );
+  const [previewPageIndex, setPreviewPageIndexLocal] = useState<number>(
+    initial?.previewPageIndex ?? 0
+  );
   const [stage, setStage] = useState<string>('');
   const isMobile = useIsMobile();
+  const router = useRouter();
   const busy = status === 'running' || status === 'downloading';
 
   const onFile = async (file: File) => {
     setStatus('running');
     setError(null);
     setState(null);
-    setPreviewPageIndex(0);
+    setPreviewPageIndexLocal(0);
     setStage('');
     try {
       const next = await processDocument(file, setStage);
+      const defaultEnabled = defaultEnabledMap(next.result.pages);
       setState(next);
-      setEnabled(defaultEnabledMap(next.result.pages));
+      setEnabledLocal(defaultEnabled);
+      setRedactorSession({
+        result: next.result,
+        rasters: next.rasters,
+        fileName: next.fileName,
+        pagePtSizes: next.pagePtSizes,
+        enabled: defaultEnabled,
+        previewPageIndex: 0,
+      });
       setStatus('done');
     } catch (e) {
       setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
+  };
+
+  const startOver = () => {
+    setRedactorSession(null);
+    setStatus('idle');
+    setState(null);
+    setEnabledLocal(new Map());
+    setPreviewPageIndexLocal(0);
+    setStage('');
+    setError(null);
+  };
+
+  const setPreviewPageIndex = (next: number) => {
+    setPreviewPageIndexLocal(next);
+    updateRedactorSession({ previewPageIndex: next });
   };
 
   const loadSample = async () => {
@@ -198,11 +252,45 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
   };
 
   const onToggle = (k: ToggleKey, value: boolean) => {
-    setEnabled((prev) => {
+    setEnabledLocal((prev) => {
       const next = new Map(prev);
       next.set(toggleKeyString(k), value);
+      updateRedactorSession({ enabled: next });
       return next;
     });
+  };
+
+  const openInManualMode = () => {
+    if (!state) return;
+    const filteredPerPage = filterEnabledDetections(state.result.pages, enabled);
+    const pages = state.rasters.map((r, idx) => {
+      const pt = state.pagePtSizes[idx] ?? { width: r.width * 0.75, height: r.height * 0.75 };
+      return {
+        canvas: r.canvas,
+        width: r.width,
+        height: r.height,
+        widthPt: pt.width,
+        heightPt: pt.height,
+      };
+    });
+    const seedBoxes = new Map<number, UserBox[]>();
+    filteredPerPage.forEach((detections, idx) => {
+      const boxes: UserBox[] = detections.map((d) => ({
+        id: seedBoxId(),
+        x: d.maskBbox.x,
+        y: d.maskBbox.y,
+        w: d.maskBbox.w,
+        h: d.maskBbox.h,
+      }));
+      seedBoxes.set(idx, boxes);
+    });
+    const handoff: ManualHandoff = {
+      fileName: state.fileName,
+      pages,
+      seedBoxes,
+    };
+    setManualHandoff(handoff);
+    router.push('/manual');
   };
 
   const download = async () => {
@@ -330,9 +418,38 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
         )}
         {status === 'done' && state && (
           <>
-            Found <strong>{totalDetections}</strong> detection
-            {totalDetections === 1 ? '' : 's'} across {state.result.pages.length} page
-            {state.result.pages.length === 1 ? '' : 's'} in {state.result.totalElapsedMs} ms.
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              <span>
+                Found <strong>{totalDetections}</strong> detection
+                {totalDetections === 1 ? '' : 's'} across {state.result.pages.length} page
+                {state.result.pages.length === 1 ? '' : 's'} in {state.result.totalElapsedMs} ms.
+              </span>
+              <button
+                type="button"
+                onClick={startOver}
+                data-testid="redactor-start-over-btn"
+                style={{
+                  background: 'var(--surface-subtle)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 8,
+                  color: 'var(--fg)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                }}
+              >
+                Start over
+              </button>
+            </div>
             {state.result.pages.length > 1 && (
               <PageNavigator
                 pageIndex={previewPageIndex}
@@ -355,6 +472,25 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
               onToggle={onToggle}
             />
             <div style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 10, fontSize: 13 }}>
+                <button
+                  type="button"
+                  onClick={openInManualMode}
+                  data-testid="open-manual-mode-btn"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    color: 'var(--brand, #a78bfa)',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 2,
+                  }}
+                >
+                  Missed something? Open in manual mode →
+                </button>
+              </div>
               <button
                 onClick={download}
                 style={{
