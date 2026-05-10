@@ -61,7 +61,7 @@
 ## Positioning Guardrails
 - Never use words: "we process your document," "we store," "we analyze your data"
 - Use instead: "your browser processes," "nothing leaves your device," "zero server touches"
-- Disclaimers on output: "Verify redaction before sharing. You are responsible for the final output."
+- Disclaimers on output: "Verify redaction before sharing." (keep liability framing in Terms/Privacy, not under the download button)
 - Network-inspector-visible assertion: "no document-data requests leave your device" (enforced in CI)
 - Liability framing: product provides tooling; user verifies correctness
 - Output PDF disclaimer: "Image-only PDF to prevent text extraction of redacted content. Larger file, no searchable text."

@@ -391,8 +391,7 @@ export function ManualRedactApp() {
                 : `Download redacted PDF (${totalBoxes} box${totalBoxes === 1 ? '' : 'es'})`}
             </button>
             <div style={{ fontSize: 12, marginTop: 6, color: 'var(--muted)' }}>
-              Image-only output — no searchable text, larger file. Verify before sharing. You
-              are responsible for the final output.
+              Image-only output — no searchable text, larger file. Verify before sharing.
             </div>
             {status === 'error' && error && (
               <div style={{ marginTop: 8 }}>

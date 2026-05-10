@@ -510,7 +510,7 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
               </button>
               <div style={{ fontSize: 12, marginTop: 6 }}>
                 Image-only output — no searchable text, larger file. Verify before
-                sharing. You are responsible for the final output.
+                sharing.
               </div>
             </div>
           </>
