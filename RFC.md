@@ -243,17 +243,17 @@ UIDAI Aadhaar cards have a secure QR containing encrypted demographic data. Pres
 
 Overlapping detections are merged via IoU threshold 0.3. Final mask layer is flattened before PDF re-embed.
 
-### 4.9 Manual Redaction (Deferred)
+### 4.9 Manual Redaction (Shipped)
 
-**Status:** specced, not built. Build deferred until real-world miss rate or user reports demonstrate the escape hatch is needed. Current baselines (Aadhaar 80%, Face 87%, QR ~50% honest) suggest auto-detection is close but not complete.
+**Status:** shipped as a dedicated `/manual` route with a handoff escape hatch from the auto-detect flow (commit `0e9ceca`). Triggered by sustained user need: current 51-sample harness has 3 rotation misses that auto-detection can't recover, and the rotation-probe fallback is the ceiling for what preprocessing alone can fix.
 
-**UX:** a "Draw redaction" toggle above the preview enters draw-mode (crosshair cursor). User drags a rectangle on any page of `PreviewCanvas`; `Escape` aborts a drag mid-draw; `pointerup` below an 8px threshold discards (guards accidental clicks). Drawn rects appear in the same `DetectionToggleList` as auto-detections, with a delete affordance next to the checkbox.
+**Architecture:** manual redaction lives at `app/manual/page.tsx` → `src/ui/manual/ManualRedactApp.tsx`, separate from the auto-detect app (`src/ui/RedactorApp.tsx`). The two share the masking and flatten pipeline (see §5.4) but not UI state — a module-level session store (`src/ui/manual/manualSession.ts`) preserves drawn rectangles across navigation. On auto-detect's preview screen, a handoff link sets the pending image via `setManualHandoff` and routes to `/manual`; a second handoff while dirty shows `ConfirmReplaceModal` before discarding.
 
-**Data model:** extend `DetectionKind` with `'manual'`. Manual detections use the existing `Detection` shape — `bbox === maskBbox`, `confidence: 1`, `value: 'manual'`. Coordinates are stored in raster space, not display space, so the existing flattener loops unchanged (see §5.4).
+**UX:** crosshair cursor on the canvas; drag to draw a rectangle on the current page. `Escape` aborts mid-draw; `pointerup` below an 8px threshold discards (guards accidental clicks). Drawn rects appear in a list with per-item delete.
 
-**Touch on iOS Safari:** use `pointer` events (not `mouse`), call `setPointerCapture` in `pointerdown`. Without capture, drags are lost when the pointer leaves the overlay.
+**Data model:** `DetectionKind` includes `'manual'`. Manual detections reuse the `Detection` shape — `bbox === maskBbox`, `confidence: 1`, `value: 'manual'`. Coordinates are stored in raster space, so the flattener (§5.4) treats manual and auto detections identically.
 
-**Trigger to build:** any of (a) support email citing an auto-detection miss, (b) an Aadhaar miss in the canonical real-sample harness that can't be recovered by preprocessing, (c) a B2B evaluator asks for it during the waitlist phase.
+**Touch on iOS Safari:** `pointer` events with `setPointerCapture` in `pointerdown` — without capture, drags are lost when the pointer leaves the canvas.
 
 ---
 
