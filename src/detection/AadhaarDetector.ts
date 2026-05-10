@@ -50,18 +50,43 @@ function tryTripletStartingAt(line: OCRToken[], idx: number): Detection | null {
   return { kind: 'aadhaar', bbox, maskBbox, value: candidate, confidence };
 }
 
+// Tesseract sometimes emits a correct digit string inside a bbox that
+// doesn't actually fit the glyphs — the bbox extends into surrounding
+// whitespace (hallucinated width) or sits on an empty region (hallucinated
+// position). Either way, estimateFirstEightSubBox then scales the mask
+// across the wrong pixels. Flag such detections `suspicious` so the
+// orchestrator can re-run OCR on horizontal bands and replace them with
+// a cleanly-bounded same-value detection.
+//
+// Heuristic: a digit glyph in a typical card font is 0.4-1.3× its line
+// height wide. For a 12-char token (no spaces) we expect
+// `bbox.w / (12 × bbox.h)` to land in that range. A ratio >1.3 signals
+// a hallucinated-wide bbox; <0.4 signals a bbox that's too small to
+// contain the characters. Add a small tolerance for matches that include
+// spaces in the token text ("8025 0305 5552") by using matchText.length
+// instead of 12 when available.
+function hasPlausibleGlyphWidth(bbox: BoundingBox, charCount: number): boolean {
+  if (bbox.h <= 0 || charCount <= 0) return false;
+  const perChar = bbox.w / (charCount * bbox.h);
+  return perChar >= 0.4 && perChar <= 1.3;
+}
+
 function tryInlineMatches(token: OCRToken): Detection | null {
   const m = [...token.text.matchAll(INLINE_RE)];
   for (const match of m) {
     const candidate = match[1]! + match[2]! + match[3]!;
     if (isValidVerhoeff(candidate)) {
-      return {
+      const d: Detection = {
         kind: 'aadhaar',
         bbox: token.bbox,
         maskBbox: estimateFirstEightSubBox(token.bbox, token.text, match[0]!),
         value: candidate,
         confidence: token.confidence,
       };
+      if (!hasPlausibleGlyphWidth(token.bbox, token.text.length)) {
+        d.suspicious = true;
+      }
+      return d;
     }
   }
   return null;

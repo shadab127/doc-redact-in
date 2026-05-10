@@ -90,6 +90,28 @@ function hasAadhaarHit(detections: readonly Detection[]): boolean {
   return detections.some((d) => d.kind === 'aadhaar');
 }
 
+function hasSuspiciousAadhaar(detections: readonly Detection[]): boolean {
+  return detections.some((d) => d.kind === 'aadhaar' && d.suspicious === true);
+}
+
+/**
+ * Drop any suspicious Aadhaar detection when a clean one exists for the
+ * same 12-digit value. The inline path occasionally produces a valid
+ * digit string inside a hallucinated-wide bbox that masks empty pixels;
+ * once a band re-OCR has produced a cleanly-bounded detection for the
+ * same number, the suspicious one adds nothing but a misplaced mask.
+ */
+function dropSuspiciousWhenCleanExists(detections: readonly Detection[]): Detection[] {
+  const cleanValues = new Set<string>();
+  for (const d of detections) {
+    if (d.kind === 'aadhaar' && !d.suspicious) cleanValues.add(d.value);
+  }
+  if (cleanValues.size === 0) return detections.slice();
+  return detections.filter(
+    (d) => !(d.kind === 'aadhaar' && d.suspicious === true && cleanValues.has(d.value))
+  );
+}
+
 /**
  * Build a horizontal band of the source canvas (no horizontal cropping),
  * translating OCR bboxes back into source coordinates.
@@ -232,30 +254,45 @@ async function runDetectors(
 }
 
 /**
- * Last-chance Aadhaar recovery: slice the source canvas into 4 overlapping
+ * Last-chance Aadhaar recovery: slice the source canvas into 3 overlapping
  * horizontal bands and re-OCR each band. On PDFs where the card occupies
  * only a small fraction of the rasterized page (e.g. the back-only panel
  * of an e-Aadhaar printout), the full-page Tesseract pass can misread the
  * digit row entirely. Running OCR on a taller, narrower band lets the
  * layout analyzer lock onto the digits at a larger relative scale.
  *
- * Bands overlap by 50% so an Aadhaar row straddling a cut boundary is
- * captured whole in at least one band. Stops on first Verhoeff-valid hit.
+ * Bounded to 3 OCR passes (one per band). Stops early when (a) no suspicious
+ * input detections exist and any band produces an Aadhaar hit, or (b) every
+ * suspicious input detection has a clean counterpart in the merged set.
+ * Returns the best-seen `refreshed` set even if no band fully succeeded;
+ * returns null if no band produced any Aadhaar hit.
  */
 async function recoverAadhaarFromBands(
   canvas: HTMLCanvasElement | ImageBitmap,
   tokens: readonly OCRToken[],
   ocr: OCRRunner
 ): Promise<Detection[] | null> {
-  // 4 overlapping bands: [0,0.4], [0.3,0.7], [0.6,1.0], plus the middle
-  // [0.2,0.8] as a wider catch-all. Each adds ~1-2s of OCR on the lower-
-  // resolution band, capped by the inherent Tesseract cost.
+  // Three overlapping bands that together cover the full canvas. Each adds
+  // ~1-2s of OCR on the cropped band, capped by the inherent Tesseract cost.
   const bandFracs: Array<[number, number]> = [
     [0.3, 0.7],
     [0.0, 0.5],
     [0.5, 1.0],
   ];
+  // Collect the suspicious detections from the original tokens so we know
+  // which ones to replace. A suspicious detection is "replaced" when a
+  // clean detection with the same value AND overlapping bbox appears in
+  // the merged set. Matching by value alone is insufficient — the same
+  // Aadhaar number can appear twice on a card (front + back), and a
+  // clean detection for one instance shouldn't short-circuit recovery
+  // of a suspicious detection for the other.
+  const originalDetections = textDetections(tokens as OCRToken[]);
+  const suspiciousToReplace = originalDetections.filter(
+    (d) => d.kind === 'aadhaar' && d.suspicious
+  );
+
   let lineIdBase = (tokens.reduce((m, t) => Math.max(m, t.lineId), -1) ?? -1) + 1000;
+  let bestRefreshed: Detection[] | null = null;
   for (const [y0, y1] of bandFracs) {
     const band = buildHorizontalBandCanvas(canvas, y0, y1);
     if (!band) continue;
@@ -264,9 +301,24 @@ async function recoverAadhaarFromBands(
     lineIdBase += 1000;
     const merged = [...tokens, ...translated];
     const refreshed = textDetections(merged);
-    if (hasAadhaarHit(refreshed)) return refreshed;
+
+    if (!hasAadhaarHit(refreshed)) continue;
+
+    // A suspicious detection is replaced when the refreshed set contains a
+    // clean detection with the same value that overlaps the suspicious
+    // bbox. (The bbox-overlap dedup in detectAadhaar already drops the
+    // suspicious inline hit when a clean triplet overlaps it — so in
+    // practice "replaced" means the suspicious detection no longer
+    // appears in the refreshed set at all.)
+    const suspiciousRemaining = suspiciousToReplace.filter((orig) =>
+      refreshed.some(
+        (d) => d.kind === 'aadhaar' && d.suspicious && d.value === orig.value
+      )
+    );
+    bestRefreshed = refreshed;
+    if (suspiciousRemaining.length === 0) return refreshed;
   }
-  return null;
+  return bestRefreshed;
 }
 
 async function runOnImage(
@@ -327,21 +379,52 @@ async function runOnImage(
     }
   }
 
-  // Fallback 3 (last): if still no Aadhaar detection, try the digit-row
-  // recovery pass on the now-effective canvas/tokens. Narrow digits like
-  // `1` sometimes get dropped by the default Tesseract layout segmenter;
-  // a PSM-7 + digit-whitelist re-OCR of each suspicious line recovers them.
-  if (!hasAadhaarHit(effectiveDetections) && effectiveCanvas) {
+  // Fallback 3 (last): if we have no Aadhaar hit *or* an existing hit was
+  // flagged suspicious (text valid, bbox implausibly wide), re-run OCR on
+  // horizontal bands of the canvas. This recovers digits that the default
+  // layout segmenter misreads, and corrects bbox hallucinations by merging
+  // a cleanly-bounded detection for the same number alongside the bad one.
+  const needsRecovery =
+    !hasAadhaarHit(effectiveDetections) || hasSuspiciousAadhaar(effectiveDetections);
+  if (needsRecovery && effectiveCanvas) {
     const recovered = await recoverAadhaarFromBands(
       effectiveCanvas,
       effectiveTokens,
       runners.ocr
     );
     if (recovered) {
-      const nonText = effectiveDetections.filter(
-        (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
-      );
-      effectiveDetections = [...recovered, ...nonText];
+      if (!hasAadhaarHit(effectiveDetections)) {
+        // No prior Aadhaar — adopt the recovered text detections wholesale.
+        const nonText = effectiveDetections.filter(
+          (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
+        );
+        effectiveDetections = [...recovered, ...nonText];
+      } else {
+        // Prior suspicious hit exists. Merge any *new* recovered Aadhaar
+        // detections (values not already in the current set) alongside
+        // existing ones, then drop the suspicious ones if a clean same-
+        // value counterpart now exists.
+        const existingValues = new Set(
+          effectiveDetections.filter((d) => d.kind === 'aadhaar').map((d) => d.value)
+        );
+        const additions = recovered.filter(
+          (d) => d.kind === 'aadhaar' && !existingValues.has(d.value)
+        );
+        const merged = [...effectiveDetections, ...additions];
+        // Also replace suspicious detections whose value now has a clean
+        // counterpart from the recovery pass.
+        const cleanByValue = new Map<string, Detection>();
+        for (const d of recovered) {
+          if (d.kind === 'aadhaar' && !d.suspicious) cleanByValue.set(d.value, d);
+        }
+        const replaced = merged.map((d) => {
+          if (d.kind === 'aadhaar' && d.suspicious && cleanByValue.has(d.value)) {
+            return cleanByValue.get(d.value)!;
+          }
+          return d;
+        });
+        effectiveDetections = dropSuspiciousWhenCleanExists(replaced);
+      }
     }
   }
 
@@ -390,17 +473,43 @@ async function runOnPdf(
       // rasterization at scale=3 occasionally produces small digits (when
       // the card fills only a fraction of a high-res page), which
       // Tesseract's default layout segmenter drops narrow characters from.
-      if (!hasAadhaarHit(finalDetections)) {
+      // Also runs when an existing Aadhaar hit is flagged suspicious — the
+      // inline path sometimes produces a valid value inside a hallucinated
+      // wide bbox that masks empty pixels instead of the digits.
+      const needsRecovery =
+        !hasAadhaarHit(finalDetections) || hasSuspiciousAadhaar(finalDetections);
+      if (needsRecovery) {
         const recovered = await recoverAadhaarFromBands(
           raster.canvas,
           tokens,
           runners.ocr
         );
         if (recovered) {
-          const nonText = finalDetections.filter(
-            (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
-          );
-          finalDetections = [...recovered, ...nonText];
+          if (!hasAadhaarHit(finalDetections)) {
+            const nonText = finalDetections.filter(
+              (d) => d.kind !== 'aadhaar' && d.kind !== 'pan' && d.kind !== 'passport_mrz'
+            );
+            finalDetections = [...recovered, ...nonText];
+          } else {
+            const existingValues = new Set(
+              finalDetections.filter((d) => d.kind === 'aadhaar').map((d) => d.value)
+            );
+            const additions = recovered.filter(
+              (d) => d.kind === 'aadhaar' && !existingValues.has(d.value)
+            );
+            const merged = [...finalDetections, ...additions];
+            const cleanByValue = new Map<string, Detection>();
+            for (const d of recovered) {
+              if (d.kind === 'aadhaar' && !d.suspicious) cleanByValue.set(d.value, d);
+            }
+            const replaced = merged.map((d) => {
+              if (d.kind === 'aadhaar' && d.suspicious && cleanByValue.has(d.value)) {
+                return cleanByValue.get(d.value)!;
+              }
+              return d;
+            });
+            finalDetections = dropSuspiciousWhenCleanExists(replaced);
+          }
         }
       }
       pages.push({

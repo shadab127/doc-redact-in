@@ -34,6 +34,15 @@ export interface Detection {
   maskBbox: BoundingBox;
   value: string;
   confidence: number;
+  /**
+   * Inline-match Aadhaar detections flag themselves as suspicious when
+   * their bbox aspect ratio doesn't match a normal 12-digit row — this
+   * happens when Tesseract emits the right text but a hallucinated wide
+   * bbox covering whitespace beyond the glyphs. The orchestrator reads
+   * this flag to decide whether to re-run detection on horizontal bands
+   * even when a hit already exists.
+   */
+  suspicious?: boolean;
 }
 
 export interface DetectionResult {

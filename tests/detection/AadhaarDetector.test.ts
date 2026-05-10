@@ -159,4 +159,30 @@ describe('detectAadhaar', () => {
     const result = detectAadhaar(tokens);
     expect(result).toHaveLength(1);
   });
+
+  it('flags inline detection as suspicious when per-char width exceeds line height', () => {
+    const aadhaar = mkValidAadhaar(12);
+    // 12-char token "802503055552" in a 730x44 bbox. Per-char = 730/(12*44) ≈
+    // 1.38 — above the 1.3 upper bound, signalling a hallucinated-wide bbox
+    // (mimics Tesseract's output on the sample_8 front panel).
+    const tokens: OCRToken[] = [
+      tok(aadhaar, 10, 0, { bbox: { x: 38, y: 390, w: 730, h: 44 } }),
+    ];
+    const result = detectAadhaar(tokens);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.suspicious).toBe(true);
+  });
+
+  it('does not flag inline detections with plausible per-char widths', () => {
+    const aadhaar = mkValidAadhaar(13);
+    const formatted = `${aadhaar.slice(0, 4)} ${aadhaar.slice(4, 8)} ${aadhaar.slice(8, 12)}`;
+    // 14-char token in a 140x20 bbox. Per-char = 140/(14*20) = 0.5 — inside
+    // the [0.4, 1.3] range, so not suspicious.
+    const tokens: OCRToken[] = [
+      tok(formatted, 10, 0, { bbox: { x: 10, y: 100, w: 140, h: 20 } }),
+    ];
+    const result = detectAadhaar(tokens);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.suspicious).toBeUndefined();
+  });
 });
