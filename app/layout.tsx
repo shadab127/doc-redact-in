@@ -20,10 +20,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'DocRedact.in',
-    // Twitter / LinkedIn / WhatsApp ignore SVG OG images. /og.png must be
-    // generated from og.svg before launch (e.g. via any SVG→PNG converter
-    // at 1200×630) and committed alongside. Until then, the card falls
-    // back to the page <meta description> with no hero image.
     images: [{ url: '/og.png', width: 1200, height: 630 }],
   },
   twitter: { card: 'summary_large_image', images: ['/og.png'] },
