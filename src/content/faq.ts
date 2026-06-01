@@ -54,6 +54,84 @@ export const MASK_AADHAAR_FAQ: readonly FaqEntry[] = [
   },
 ];
 
+export const REDACT_PAN_FAQ: readonly FaqEntry[] = [
+  {
+    q: 'Is it safe to redact my PAN card on this site?',
+    a: 'You are not uploading your PAN anywhere. DocRedact.in runs entirely in your browser tab — no server ever receives your file, your PAN number, or the text read from it. Open your browser DevTools → Network tab while you use the tool and watch: nothing carrying your document leaves your device. The full code is public on GitHub under AGPL-3.0.',
+  },
+  {
+    q: 'What part of the PAN card does the tool mask?',
+    a: 'The full 10-character PAN (for example ABCDE1234F) is covered with a solid black rectangle. PAN has no official partial-mask convention the way Aadhaar does (first 8 hidden, last 4 shown), so the whole number is masked. By default the tool also covers the photograph and any Aadhaar number, passport MRZ, or UIDAI QR it finds on the same page.',
+  },
+  {
+    q: 'How does the tool know a string is a PAN?',
+    a: 'Tesseract OCR reads the text on the card in your browser, and the tool looks for the exact PAN shape — five letters, four digits, one letter. It then checks that the fourth character is a valid PAN holder-type code (P for individual, C for company, H for HUF, F for firm, and so on). Strings that match the digit-letter pattern but fail the holder-type check are rejected. PAN has no public checksum the way Aadhaar has the Verhoeff digit, so this strict structure plus the holder-type gate is what keeps false positives low — but you should still review the detection before downloading.',
+  },
+  {
+    q: 'Does it also cover my photo and signature on the PAN card?',
+    a: 'It covers the photograph automatically (an on-device face detector finds it). The signature is not detected as a distinct field, so if you want to hide it, use the manual draw-to-redact mode to draw a rectangle over it before downloading.',
+  },
+  {
+    q: 'Can I redact a PAN in both a photo and a PDF?',
+    a: 'Yes. JPG, PNG, and PDF all work, up to 20 MB. A PDF is re-rendered page by page into a new image-only PDF, so the masked number cannot be recovered with copy-paste or pdftotext.',
+  },
+  {
+    q: 'Why should I mask my PAN before sharing it?',
+    a: 'Your PAN is linked to your bank accounts, tax records, mutual-fund and demat holdings, and most financial KYC. A leaked PAN plus a few other details is enough to enable impersonation and fraudulent account opening. Many portals ask for a PAN copy when they only need to confirm a name or a category — sharing a masked copy reduces what is exposed if that recipient is later breached.',
+  },
+  {
+    q: 'What file types and sizes work?',
+    a: 'JPG, PNG, and PDF up to 20 MB. Camera photos from modern phones (8–15 MB) are comfortably within the limit.',
+  },
+  {
+    q: 'Is the output safe to email or upload?',
+    a: 'The output is a flattened image-only PDF. The original text layer is discarded and the masked PAN is drawn as a solid black rectangle on the image, so the number cannot be text-extracted or un-masked. As with any redaction, verify the output before sharing.',
+  },
+  {
+    q: 'Why is this free?',
+    a: 'The consumer tool is free forever. Revenue comes from a B2B API for businesses (HR tech, fintech KYC) that integrate redaction into their pipelines. See /api-waitlist if that is you.',
+  },
+];
+
+export const HIDE_AADHAAR_PDF_FAQ: readonly FaqEntry[] = [
+  {
+    q: 'Is it safe to open my Aadhaar PDF here?',
+    a: 'Yes — because the PDF never leaves your browser tab. DocRedact.in has no server that receives your file. The PDF is parsed, redacted, and re-saved entirely on your device. You can confirm this in DevTools → Network, and read every line of the code on GitHub under AGPL-3.0.',
+  },
+  {
+    q: 'My eAadhaar PDF is password-protected — does it work?',
+    a: 'Not directly. The official UIDAI eAadhaar download is encrypted, and the tool cannot open an encrypted PDF. Remove the password first: open the PDF in any viewer using your password (the UIDAI password is the first four letters of your name in capitals followed by your year of birth, e.g. SURE1990), then use Print → Save as PDF to create an unprotected copy. Drop that copy into DocRedact.in. This extra step happens on your device too — the unprotected copy is never uploaded anywhere.',
+  },
+  {
+    q: 'What does it hide in the PDF?',
+    a: 'By default: the first 8 digits of any Aadhaar number it finds (last 4 stay visible, the UIDAI convention), the UIDAI secure QR code, your face photograph, and any PAN or passport MRZ on the page. Each detection is a checkbox you can toggle before downloading.',
+  },
+  {
+    q: 'Does it actually remove the number from the text layer, or just cover it visually?',
+    a: 'Both, and this is the key point for PDFs. A PDF that only has a black box drawn over the text still contains the original digits in its text layer — anyone can copy-paste or run pdftotext and recover them. DocRedact.in re-renders every page to an image and builds a new image-only PDF, so there is no text layer left at all. The masked digits are gone, not merely hidden.',
+  },
+  {
+    q: 'Does it work on multi-page PDFs?',
+    a: 'Yes. Detection runs on every page up front, and the preview lets you page through with prev/next to confirm what was found on each page before you download.',
+  },
+  {
+    q: 'Why is the output PDF larger and not searchable?',
+    a: 'Because it is image-only by design. Discarding the text layer is what guarantees the masked Aadhaar number cannot be text-extracted. The trade-off is a larger file (typically 2–5× the input) with no Ctrl+F search — worth it for a document you are sharing as proof of identity.',
+  },
+  {
+    q: 'What about the QR code in the eAadhaar PDF?',
+    a: 'The UIDAI secure QR encodes your full Aadhaar number, date of birth, gender, and address. Masking only the printed digits while leaving the QR readable would defeat the purpose, so the tool finds the UIDAI QR and covers it by default along with the number.',
+  },
+  {
+    q: 'Can I do this on my phone?',
+    a: 'Yes. The tool is mobile-first and runs the same on-device pipeline on a phone. You can open a PDF from your downloads or files app; everything is processed locally in the mobile browser.',
+  },
+  {
+    q: 'Why is this free?',
+    a: 'The consumer tool is free forever. Revenue comes from a B2B API for businesses (HR tech, fintech KYC) that integrate redaction into their pipelines. See /api-waitlist if that is you.',
+  },
+];
+
 export function buildFaqSchema(faq: readonly FaqEntry[]) {
   return {
     '@context': 'https://schema.org',

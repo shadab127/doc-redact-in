@@ -14,6 +14,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const paths: { url: string; priority: number }[] = [
     { url: '/', priority: 0.9 },
     { url: '/mask-aadhaar-online', priority: 1.0 },
+    { url: '/redact-pan-card', priority: 0.9 },
+    { url: '/hide-aadhaar-number-pdf', priority: 0.9 },
     { url: '/how-it-works', priority: 0.8 },
     { url: '/privacy', priority: 0.6 },
     { url: '/terms', priority: 0.5 },

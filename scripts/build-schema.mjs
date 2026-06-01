@@ -20,15 +20,27 @@ import { fileURLToPath } from 'node:url';
 // import .ts directly without a loader, and this script runs before tsc.
 // The FAQ is canonical in src/content/faq.ts; when adding a question there,
 // also add it here. A single vitest ensures the two lists stay in sync.
-import { MASK_AADHAAR_FAQ, buildFaqSchema } from './faq-data.mjs';
+import {
+  MASK_AADHAAR_FAQ,
+  REDACT_PAN_FAQ,
+  HIDE_AADHAAR_PDF_FAQ,
+  buildFaqSchema,
+} from './faq-data.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(__dirname, '..', 'public', 'schema');
 mkdirSync(outDir, { recursive: true });
 
-const schema = buildFaqSchema(MASK_AADHAAR_FAQ);
-writeFileSync(
-  resolve(outDir, 'mask-aadhaar-online.json'),
-  JSON.stringify(schema, null, 2) + '\n'
-);
-console.log(`Wrote ${outDir}/mask-aadhaar-online.json (${MASK_AADHAAR_FAQ.length} FAQ entries).`);
+const pages = [
+  { slug: 'mask-aadhaar-online', faq: MASK_AADHAAR_FAQ },
+  { slug: 'redact-pan-card', faq: REDACT_PAN_FAQ },
+  { slug: 'hide-aadhaar-number-pdf', faq: HIDE_AADHAAR_PDF_FAQ },
+];
+
+for (const { slug, faq } of pages) {
+  writeFileSync(
+    resolve(outDir, `${slug}.json`),
+    JSON.stringify(buildFaqSchema(faq), null, 2) + '\n'
+  );
+  console.log(`Wrote ${outDir}/${slug}.json (${faq.length} FAQ entries).`);
+}

@@ -434,11 +434,13 @@ iOS Safari's `OffscreenCanvas` support is partial; face-api.js runs 3–5× slow
 
 Based on Google Search Console data from the flagship page:
 
-- `/redact-pan-card` — if PAN-related queries show up in GSC
-- `/hide-aadhaar-number-pdf` — if PDF-specific queries rank
-- `/mask-passport-india` — if passport traffic emerges
+- `/redact-pan-card` — **shipped 2026-06-01.** PAN, face, and the rest already detect; page leads with the no-partial-mask convention and is honest that PAN has no Verhoeff-equivalent checksum (structure + holder-type gate only).
+- `/hide-aadhaar-number-pdf` — **shipped 2026-06-01.** Angle is the image-only flatten (a black box in a PDF editor leaves the text layer intact); includes the password-protected eAadhaar removal steps, since encrypted PDFs are rejected (`friendlyError.ts`).
+- `/mask-passport-india` — if passport traffic emerges. Would pair with generalizing the MRZ regex past the `IND` lock to all ICAO-9303 passports.
 
-Only add pages that real search data justifies.
+Both new pages reuse the flagship's exact pattern: FAQ canonical in `src/content/faq.ts`, mirrored in `scripts/faq-data.mjs` (sync-tested), JSON-LD served as a static same-origin file via `scripts/build-schema.mjs` (never inline — strict CSP).
+
+These two were written ahead of confirmed GSC demand as a deliberate seed (social launch is on hold; SEO is the only channel firing), not because search data justified them yet. The "only add pages that real search data justifies" rule still governs `/mask-passport-india` and any further expansion.
 
 ---
 

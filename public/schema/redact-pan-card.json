@@ -1,0 +1,78 @@
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is it safe to redact my PAN card on this site?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You are not uploading your PAN anywhere. DocRedact.in runs entirely in your browser tab — no server ever receives your file, your PAN number, or the text read from it. Open your browser DevTools → Network tab while you use the tool and watch: nothing carrying your document leaves your device. The full code is public on GitHub under AGPL-3.0."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What part of the PAN card does the tool mask?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The full 10-character PAN (for example ABCDE1234F) is covered with a solid black rectangle. PAN has no official partial-mask convention the way Aadhaar does (first 8 hidden, last 4 shown), so the whole number is masked. By default the tool also covers the photograph and any Aadhaar number, passport MRZ, or UIDAI QR it finds on the same page."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does the tool know a string is a PAN?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tesseract OCR reads the text on the card in your browser, and the tool looks for the exact PAN shape — five letters, four digits, one letter. It then checks that the fourth character is a valid PAN holder-type code (P for individual, C for company, H for HUF, F for firm, and so on). Strings that match the digit-letter pattern but fail the holder-type check are rejected. PAN has no public checksum the way Aadhaar has the Verhoeff digit, so this strict structure plus the holder-type gate is what keeps false positives low — but you should still review the detection before downloading."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it also cover my photo and signature on the PAN card?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It covers the photograph automatically (an on-device face detector finds it). The signature is not detected as a distinct field, so if you want to hide it, use the manual draw-to-redact mode to draw a rectangle over it before downloading."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I redact a PAN in both a photo and a PDF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. JPG, PNG, and PDF all work, up to 20 MB. A PDF is re-rendered page by page into a new image-only PDF, so the masked number cannot be recovered with copy-paste or pdftotext."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why should I mask my PAN before sharing it?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Your PAN is linked to your bank accounts, tax records, mutual-fund and demat holdings, and most financial KYC. A leaked PAN plus a few other details is enough to enable impersonation and fraudulent account opening. Many portals ask for a PAN copy when they only need to confirm a name or a category — sharing a masked copy reduces what is exposed if that recipient is later breached."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What file types and sizes work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "JPG, PNG, and PDF up to 20 MB. Camera photos from modern phones (8–15 MB) are comfortably within the limit."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is the output safe to email or upload?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The output is a flattened image-only PDF. The original text layer is discarded and the masked PAN is drawn as a solid black rectangle on the image, so the number cannot be text-extracted or un-masked. As with any redaction, verify the output before sharing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why is this free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The consumer tool is free forever. Revenue comes from a B2B API for businesses (HR tech, fintech KYC) that integrate redaction into their pipelines. See /api-waitlist if that is you."
+      }
+    }
+  ]
+}
