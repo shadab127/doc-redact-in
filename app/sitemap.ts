@@ -22,8 +22,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: '/api-waitlist', priority: 0.7 },
     { url: '/contact', priority: 0.6 },
   ];
+  // trailingSlash: true in next.config — non-slash URLs 308-redirect, which
+  // Google reports as "Page with redirect" and refuses to index.
   return paths.map(({ url, priority }) => ({
-    url: `${SITE}${url}`,
+    url: url === '/' ? SITE + url : `${SITE}${url}/`,
     lastModified: LAST_MODIFIED,
     changeFrequency: 'monthly' as const,
     priority,
