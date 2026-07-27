@@ -8,18 +8,18 @@
  * Accuracy harness — runs the full detection pipeline in a real browser
  * against the real Aadhaar sample set and writes a per-sample report.
  *
- * Skipped by default; enable with RUN_ACCURACY=1.
- *   RUN_ACCURACY=1 npx playwright test --project=chromium accuracy-harness
+ * Skipped by default; enable with RUN_ACCURACY=1 and point ACCURACY_SAMPLE_DIR
+ * at a local directory of your own sample documents (never commit real IDs).
+ *   RUN_ACCURACY=1 ACCURACY_SAMPLE_DIR=/path/to/samples \
+ *     npx playwright test --project=chromium accuracy-harness
  *
- * Report: spikes/report-accuracy-<ISO>.md (written incrementally).
+ * Report: spikes/report-accuracy-<ISO>.md (written incrementally, gitignored).
  */
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, appendFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve, extname } from 'node:path';
 
-const SAMPLE_DIR =
-  process.env.ACCURACY_SAMPLE_DIR ??
-  '/Users/shadab.khan/Downloads/real_aadhaar_samples';
+const SAMPLE_DIR = process.env.ACCURACY_SAMPLE_DIR ?? resolve(__dirname, '../samples');
 
 const REPORT_DIR = resolve(__dirname, '../../spikes');
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

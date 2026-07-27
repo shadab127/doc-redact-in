@@ -22,3 +22,5 @@ coverage/
 GROWTH.md
 CLAUDE.md
 .claude/
+spikes/
+tests/e2e/samples/

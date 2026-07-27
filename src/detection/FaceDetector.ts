@@ -221,8 +221,8 @@ export function ocrCoverageRatio(face: BoundingBox, textBoxes: readonly Bounding
  *   - Returns a (possibly shorter) subset of `faces` in the same order.
  *   - Never adds, modifies, or reorders detections — filter only.
  *
- * NOTE: real-data verification against the 15-sample baseline has NOT been
- * done yet (MediaPipe cannot run in Node; see spikes/report-face.md §2).
+ * NOTE: real-data verification against the sample baseline has NOT been
+ * done yet (MediaPipe cannot run in Node, so this needs in-browser checking).
  * Enable this filter behind a feature flag until in-browser confirmation.
  */
 export function rejectFacesCoveredByOCR(

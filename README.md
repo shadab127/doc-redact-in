@@ -117,7 +117,3 @@ DocRedact.in is licensed under the [GNU Affero General Public License v3.0](LICE
 
 - Bugs / features: [GitHub Issues](https://github.com/shadab127/doc-redact-in/issues)
 - Private feedback: `hello@docredact.in`
-
-## Related parked ideas
-
-See `../parked-ideas/doc-redact-in.md` for original analysis.
