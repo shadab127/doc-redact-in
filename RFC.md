@@ -451,7 +451,6 @@ doc-redact-in/
 ├── LICENSE                              (AGPL-3.0 full text)
 ├── README.md
 ├── RFC.md
-├── CLAUDE.md
 ├── CONTRIBUTING.md
 ├── app/
 │   ├── page.tsx                         (root redactor)

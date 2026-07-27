@@ -20,3 +20,5 @@ coverage/
 /playwright-report/
 /playwright/.cache/
 GROWTH.md
+CLAUDE.md
+.claude/

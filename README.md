@@ -102,7 +102,6 @@ Deliberate v1 omissions: no Pro tier, no batch, no accounts, no payments, no API
 ## Design docs
 
 - [`RFC.md`](RFC.md) — technical design, detection pipeline, architecture, milestones, locked decisions
-- [`CLAUDE.md`](CLAUDE.md) — project context, tech decisions, positioning guardrails, validation gates
 
 ## Kill criteria
 
