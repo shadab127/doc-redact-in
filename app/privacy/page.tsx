@@ -31,24 +31,24 @@ export default function PrivacyPage() {
       <h2>What we do collect</h2>
       <ul>
         <li>
-          <strong>Page view counts</strong>, via Cloudflare Web Analytics. This
-          tells us which pages are visited, approximate countries and referring
-          sites. Its script and collection endpoint are hosted by Cloudflare,
-          so analytics makes external requests. We do not send filenames, OCR
-          text, QR contents or document pixels to analytics. See{' '}
-          <a href="https://developers.cloudflare.com/web-analytics/" target="_blank" rel="noopener noreferrer">
-            Cloudflare&apos;s Web Analytics documentation
-          </a>{' '}
-          for its current data practices.
+          <strong>Basic request metadata</strong>: Cloudflare serves this site
+          and handles IP addresses and browser request headers. We do not run
+          analytics, advertising trackers or third-party scripts in the app.
+          Waitlist requests use a short-lived IP-based rate limit to prevent
+          abuse; IP addresses are not saved with waitlist entries.
         </li>
         <li>
           <strong>If you use the B2B API waitlist form</strong>: your email,
-          company name, and use-case selection. Stored in Cloudflare Workers KV.
-          We use it only to contact you about the API.
+          company name, and use-case selection. Stored in Cloudflare Workers KV
+          with automatic expiration after 90 days. We use it only to contact
+          you about the API. If email notifications are configured, Resend
+          delivers a generic signup notice to our inbox; that notice does not
+          include your email, company or use case.
         </li>
         <li>
-          <strong>If you use the contact form</strong>: your email and message.
-          Forwarded to our inbox. We keep it as long as needed to respond to you.
+          <strong>If you email us</strong>: your email and message arrive in
+          our inbox via Cloudflare Email Routing. We keep correspondence only
+          as long as needed to respond. Do not attach identity documents.
         </li>
       </ul>
 
@@ -72,9 +72,19 @@ export default function PrivacyPage() {
         </a>
         . Browser tests check network requests during detection and export,
         including same-origin requests and manual redaction. Open DevTools →
-        Network and watch: you may see software downloads and analytics requests,
-        but no request carrying your document. The tests cover specific fixtures
+        Network and watch: you may see software downloads, but no request
+        carrying your document. The tests cover specific fixtures
         and are regression checks, not a guarantee about every possible input.
+      </p>
+
+      <h2>Document memory in your tab</h2>
+      <p>
+        Navigation between automatic and manual redaction keeps the original
+        document in this tab&apos;s memory so you can continue editing. Start
+        over clears both modes and pending transfers and releases the document
+        canvases. Reloading or closing the tab also ends the editing session.
+        JavaScript cannot guarantee forensic erasure from browser or operating
+        system memory. Downloaded PDFs remain on your device until you delete them.
       </p>
 
       <h2>Your rights</h2>
@@ -88,8 +98,8 @@ export default function PrivacyPage() {
 
       <h2>Contact information</h2>
       <p>
-        Contact and waitlist forms are separate from document redaction. Only
-        the information you enter in those forms is sent to our infrastructure.
+        Email correspondence and waitlist submissions are separate from document
+        redaction. Only the information you explicitly submit is sent to our infrastructure.
         A future business integration is planned to keep document processing on
         the user&apos;s device; no server-side document API is currently offered.
       </p>

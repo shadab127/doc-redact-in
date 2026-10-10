@@ -1,13 +1,8 @@
 // GNU Affero General Public License v3.0 or later; Copyright (C) 2026 Shadab Khan. See LICENSE.
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
+import { RedactorApp } from '@/src/ui/ClientRedactors';
 import Link from 'next/link';
 import { MASK_AADHAAR_FAQ } from '@/src/content/faq';
-
-const RedactorApp = dynamic(
-  () => import('@/src/ui/RedactorApp').then((m) => m.RedactorApp),
-  { ssr: false }
-);
 
 export const metadata: Metadata = {
   title: 'Mask Aadhaar Online — Free, Browser-Only, Open Source | DocRedact.in',

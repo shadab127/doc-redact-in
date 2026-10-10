@@ -173,6 +173,18 @@ describe('detectAadhaar', () => {
     expect(result[0]!.suspicious).toBe(true);
   });
 
+  it.each([false, true])('prefers clean inline bounds regardless of input order: %s', (reverse) => {
+    const aadhaar = mkValidAadhaar(14);
+    const suspicious = tok(aadhaar, 20, 0, { bbox: { x: 20, y: 50, w: 700, h: 20 } });
+    const clean = tok(aadhaar, 600, 1, { bbox: { x: 600, y: 50, w: 120, h: 20 } });
+    const elsewhere = tok(aadhaar, 20, 2, { bbox: { x: 20, y: 400, w: 120, h: 20 } });
+    const tokens = [suspicious, clean, elsewhere];
+    const result = detectAadhaar(reverse ? tokens.reverse() : tokens);
+    expect(result).toHaveLength(2);
+    expect(result.every((d) => !d.suspicious)).toBe(true);
+    expect(result.find((d) => d.bbox.y === 50)?.maskBbox).toEqual({ x: 600, y: 50, w: 80, h: 20 });
+  });
+
   it('does not flag inline detections with plausible per-char widths', () => {
     const aadhaar = mkValidAadhaar(13);
     const formatted = `${aadhaar.slice(0, 4)} ${aadhaar.slice(4, 8)} ${aadhaar.slice(8, 12)}`;

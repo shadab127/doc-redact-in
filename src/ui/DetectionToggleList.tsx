@@ -118,6 +118,11 @@ export function DetectionToggleList({
                 />
                 <div style={{ flex: 1, fontSize: 14 }}>
                   <div>{KIND_LABELS[d.kind]}</div>
+                  {d.suspicious && (
+                    <div style={{ fontSize: 12, color: 'var(--danger, #ef4444)' }} data-testid="uncertain-mask-warning">
+                      Mask position is uncertain. Check the preview and correct it in manual mode.
+                    </div>
+                  )}
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>
                     page {p.pageIndex + 1} · {formatBbox(d.bbox)} · confidence{' '}
                     {Math.round(d.confidence * 100)}%

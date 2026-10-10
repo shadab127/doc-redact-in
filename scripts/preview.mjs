@@ -16,29 +16,11 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { headersForPath } from './preview-headers.mjs';
 
 const ROOT = path.resolve('out');
 const HEADERS_FILE = path.join(ROOT, '_headers');
 const PORT = Number(process.env.PORT ?? 4321);
-
-function parseHeadersFile(text) {
-  // Minimal _headers parser — just the "/*" block applies to every path.
-  const lines = text.split(/\r?\n/);
-  let inGlob = false;
-  const global = {};
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    if (!line || line.startsWith('#')) continue;
-    if (!line.startsWith(' ')) {
-      inGlob = line.trim() === '/*';
-      continue;
-    }
-    if (!inGlob) continue;
-    const m = line.trim().match(/^([A-Za-z0-9-]+):\s*(.+)$/);
-    if (m) global[m[1]] = m[2];
-  }
-  return global;
-}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -62,10 +44,10 @@ const MIME = {
 };
 
 const headersText = fs.readFileSync(HEADERS_FILE, 'utf8');
-const globalHeaders = parseHeadersFile(headersText);
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  const headers = headersForPath(headersText, url.pathname);
   let pathname = decodeURIComponent(url.pathname);
   if (pathname.endsWith('/')) pathname += 'index.html';
   let fullPath = path.join(ROOT, pathname);
@@ -80,7 +62,7 @@ const server = http.createServer((req, res) => {
     else {
       res.writeHead(404, {
         'Content-Type': 'text/plain',
-        ...globalHeaders,
+        ...headers,
       });
       res.end(`not found: ${pathname}`);
       return;
@@ -89,7 +71,7 @@ const server = http.createServer((req, res) => {
   const ext = path.extname(fullPath).toLowerCase();
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    ...globalHeaders,
+    ...headers,
   });
   fs.createReadStream(fullPath).pipe(res);
 });

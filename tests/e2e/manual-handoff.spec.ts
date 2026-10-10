@@ -40,6 +40,26 @@ async function drawNewBoxInCorner(page: Page) {
   await page.mouse.up();
 }
 
+for (const mode of ['automatic', 'manual']) {
+  test(`Start over in ${mode} mode clears the document from both modes`, async ({ page }) => {
+    await runAutoDetect(page);
+    await page.getByTestId('open-manual-mode-btn').click();
+    await expect(page.getByTestId('manual-redact-canvas')).toBeVisible();
+    if (mode === 'automatic') {
+      await page.goBack();
+      await page.getByTestId('redactor-start-over-btn').click();
+      await page.goForward();
+      await expect(page.getByTestId('manual-redact-canvas')).toHaveCount(0);
+      await expect(page.getByTestId('dropzone-input')).toBeAttached();
+    } else {
+      await page.getByRole('button', { name: 'Start over', exact: true }).click();
+      await page.goBack();
+      await expect(page.getByText(/Found \d+ detection/i)).toHaveCount(0);
+      await expect(page.getByTestId('redaction-preview')).toHaveCount(0);
+    }
+  });
+}
+
 test('handoff link: click navigates to /manual with seeded boxes', async ({ page }) => {
   await runAutoDetect(page);
 

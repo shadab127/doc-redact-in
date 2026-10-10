@@ -25,8 +25,6 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', images: ['/og.png'] },
 };
 
-const CF_ANALYTICS_TOKEN = process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN;
-
 // Runs before first paint. Reads the persisted preference (or system setting)
 // and applies data-theme to <html> synchronously so the initial paint uses
 // the right palette. Without this, users reloading with dark mode saved would
@@ -54,13 +52,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Header />
         {children}
         <Footer />
-        {CF_ANALYTICS_TOKEN && (
-          <script
-            defer
-            src="https://static.cloudflareinsights.com/beacon.min.js"
-            data-cf-beacon={`{"token":"${CF_ANALYTICS_TOKEN}"}`}
-          />
-        )}
       </body>
     </html>
   );

@@ -15,7 +15,8 @@ vi.mock('pdf-lib', () => ({
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
-function fixture(failEncoding = false) {
+function fixture(failEncoding = false, delayEncoding = false) {
+  const pending: Array<() => void> = [];
   const encodedMasks: number[][][] = [];
   const outputs: HTMLCanvasElement[] = [];
   const sourceContext = vi.fn();
@@ -29,14 +30,16 @@ function fixture(failEncoding = false) {
         getContext: () => ctx,
         toBlob: (cb: BlobCallback) => {
           encodedMasks.push(masks.slice());
-          cb(failEncoding ? null : new Blob(['jpeg']));
+          const finish = () => cb(failEncoding ? null : new Blob(['jpeg']));
+          if (delayEncoding) pending.push(finish);
+          else finish();
         },
       } as unknown as HTMLCanvasElement;
       outputs.push(canvas);
       return canvas;
     },
   });
-  return { source, sourceContext, encodedMasks, outputs };
+  return { source, sourceContext, encodedMasks, outputs, pending };
 }
 
 const detection: Detection = {
@@ -64,6 +67,32 @@ describe('non-mutating PDF export', () => {
     await flattenToImageOnlyPdf([page]);
     expect(f.encodedMasks).toEqual([[[1, 2, 3, 4]], [[20, 2, 3, 4]], []]);
     expect(f.sourceContext).not.toHaveBeenCalled();
+  });
+
+  it('rejects an already-cancelled export without allocating a canvas', async () => {
+    const f = fixture();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(flattenToImageOnlyPdf([
+      { canvas: f.source, widthPt: 100, heightPt: 80, detections: [] },
+    ], { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(f.outputs).toHaveLength(0);
+  });
+
+  it('releases a pending encoding canvas immediately and skips subsequent pages on cancellation', async () => {
+    const f = fixture(false, true);
+    const controller = new AbortController();
+    const page = { canvas: f.source, widthPt: 100, heightPt: 80, detections: [detection] };
+    const exportPromise = flattenToImageOnlyPdf([page, page], { signal: controller.signal });
+    const rejected = expect(exportPromise).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.waitFor(() => expect(f.pending).toHaveLength(1));
+    controller.abort();
+    await rejected;
+    expect(f.outputs).toHaveLength(1);
+    expect([f.outputs[0]!.width, f.outputs[0]!.height]).toEqual([0, 0]);
+    f.pending[0]!();
+    expect(f.encodedMasks).toHaveLength(1);
+    expect([f.source.width, f.source.height]).toEqual([100, 80]);
   });
 
   it('releases the temporary canvas after encoding fails', async () => {

@@ -16,12 +16,10 @@
 // in public/vendor/. The file is committed to the repo — subsequent runs are
 // offline.
 //
-// Idempotent: re-running is a no-op if every target already exists and is
-// non-empty.
-
 import { createHash } from 'node:crypto';
-import { cp, mkdir, stat, writeFile } from 'node:fs/promises';
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { cp, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const REPO = path.resolve('.');
@@ -67,20 +65,22 @@ function isNonEmptyFile(p) {
   }
 }
 
-async function copyNodeModule(fromRel, toRel) {
-  const src = path.join(REPO, 'node_modules', fromRel);
-  const dst = path.join(VENDOR, toRel);
-  if (isNonEmptyFile(dst) || (existsSync(dst) && statSync(dst).isDirectory() && readdirSync(dst).length > 0)) {
-    return { action: 'skip', dst };
-  }
+export async function copyAsset(src, dst) {
   await ensureDir(path.dirname(dst));
-  await cp(src, dst, { recursive: true });
+  await cp(src, dst, { recursive: true, force: true });
   return { action: 'copy', dst };
 }
 
-async function fetchWithHashCheck(url, dst, expectedSha256) {
+async function copyNodeModule(fromRel, toRel) {
+  return copyAsset(path.join(REPO, 'node_modules', fromRel), path.join(VENDOR, toRel));
+}
+
+export async function fetchWithHashCheck(url, dst, expectedSha256) {
+  if (!expectedSha256) throw new Error('Missing pinned asset hash');
   if (isNonEmptyFile(dst)) {
-    return { action: 'skip', dst };
+    const got = createHash('sha256').update(await readFile(dst)).digest('hex');
+    if (got !== expectedSha256) throw new Error(`Vendored asset integrity check failed: ${dst}`);
+    return { action: 'verified', dst, sha256: got };
   }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fetch ${url} -> ${res.status}`);
@@ -205,7 +205,9 @@ async function walkSize(dir) {
   return n;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

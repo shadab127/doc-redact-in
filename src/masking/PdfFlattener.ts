@@ -18,6 +18,7 @@ export interface FlattenablePage {
 
 export interface FlattenOptions {
   jpegQuality?: number;
+  signal?: AbortSignal;
 }
 
 interface PdfLibModule {
@@ -46,13 +47,28 @@ interface PdfImageLike {
 
 async function canvasToJpegBytes(
   canvas: HTMLCanvasElement,
-  quality: number
+  quality: number,
+  signal?: AbortSignal
 ): Promise<Uint8Array> {
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/jpeg', quality)
-  );
+  signal?.throwIfAborted();
+  const blob: Blob | null = await new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal?.reason);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      canvas.toBlob((b) => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve(b);
+      }, 'image/jpeg', quality);
+    } catch (error) {
+      signal?.removeEventListener('abort', onAbort);
+      reject(error);
+    }
+  });
+  signal?.throwIfAborted();
   if (!blob) throw new Error('canvas.toBlob returned null');
-  return new Uint8Array(await blob.arrayBuffer());
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  signal?.throwIfAborted();
+  return bytes;
 }
 
 export async function flattenToImageOnlyPdf(
@@ -60,10 +76,14 @@ export async function flattenToImageOnlyPdf(
   opts: FlattenOptions = {}
 ): Promise<Uint8Array> {
   const quality = opts.jpegQuality ?? 0.85;
+  const signal = opts.signal;
+  signal?.throwIfAborted();
   const pdfLib = (await import('pdf-lib')) as unknown as PdfLibModule;
+  signal?.throwIfAborted();
   const doc = await pdfLib.PDFDocument.create();
 
   for (const p of pages) {
+    signal?.throwIfAborted();
     const output = document.createElement('canvas');
     output.width = p.canvas.width;
     output.height = p.canvas.height;
@@ -76,8 +96,9 @@ export async function flattenToImageOnlyPdf(
       for (const box of p.manualBoxes ?? []) {
         ctx.fillRect(box.x, box.y, box.w, box.h);
       }
-      const jpeg = await canvasToJpegBytes(output, quality);
+      const jpeg = await canvasToJpegBytes(output, quality, signal);
       const img = await doc.embedJpg(jpeg);
+      signal?.throwIfAborted();
       const page = doc.addPage([p.widthPt, p.heightPt]);
       page.drawImage(img, { x: 0, y: 0, width: p.widthPt, height: p.heightPt });
     } finally {
@@ -86,5 +107,8 @@ export async function flattenToImageOnlyPdf(
     }
   }
 
-  return doc.save();
+  signal?.throwIfAborted();
+  const bytes = await doc.save();
+  signal?.throwIfAborted();
+  return bytes;
 }

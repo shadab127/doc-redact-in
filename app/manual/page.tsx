@@ -6,12 +6,7 @@
  * See LICENSE file in the project root for full text.
  */
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
-
-const ManualRedactApp = dynamic(
-  () => import('@/src/ui/manual/ManualRedactApp').then((m) => m.ManualRedactApp),
-  { ssr: false }
-);
+import { ManualRedactApp } from '@/src/ui/ClientRedactors';
 
 export const metadata: Metadata = {
   title: 'Manual redact — DocRedact.in',

@@ -6,7 +6,10 @@
  * See LICENSE file in the project root for full text.
  */
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
+  DetectionToggleList,
   defaultEnabledMap,
   filterEnabledDetections,
   toggleKeyString,
@@ -22,6 +25,18 @@ function det(kind: Detection['kind']): Detection {
     confidence: 0.9,
   };
 }
+
+describe('uncertain detections', () => {
+  it('warns about unresolved mask positions without exposing detected values', () => {
+    const detection = { ...det('aadhaar'), suspicious: true, value: 'synthetic-private-value' };
+    const pages = [{ pageIndex: 0, detections: [detection] }];
+    const markup = renderToStaticMarkup(createElement(DetectionToggleList, {
+      pages, enabled: defaultEnabledMap(pages), onToggle: () => {},
+    }));
+    expect(markup).toContain('Mask position is uncertain');
+    expect(markup).not.toContain(detection.value);
+  });
+});
 
 describe('toggleKeyString', () => {
   it('produces a stable composite key for (pageIndex, detectionIndex)', () => {

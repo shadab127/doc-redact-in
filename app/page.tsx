@@ -5,14 +5,9 @@
  * Licensed under the GNU Affero General Public License v3.0 or later.
  * See LICENSE file in the project root for full text.
  */
-import dynamic from 'next/dynamic';
+import { RedactorApp } from '@/src/ui/ClientRedactors';
 import { DetectionChips } from '@/src/ui/DetectionChips';
 import { HeroIllustration } from '@/src/ui/HeroIllustration';
-
-const RedactorApp = dynamic(
-  () => import('@/src/ui/RedactorApp').then((m) => m.RedactorApp),
-  { ssr: false }
-);
 
 export default function Home() {
   return (

@@ -19,6 +19,8 @@ import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, appendFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve, extname } from 'node:path';
 
+test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
 const SAMPLE_DIR = process.env.ACCURACY_SAMPLE_DIR ?? resolve(__dirname, '../samples');
 
 const REPORT_DIR = resolve(__dirname, '../../spikes');
@@ -139,9 +141,9 @@ test.describe('accuracy harness', () => {
         } else {
           status = 'error';
         }
-      } catch (e) {
+      } catch {
         status = 'error';
-        console.log(`[harness] ${name}: ${(e as Error).message}`);
+        console.log(`[harness] ${name}: processing failed; document details withheld`);
       }
 
       // Update totals

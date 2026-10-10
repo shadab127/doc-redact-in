@@ -15,6 +15,7 @@ import { test, expect } from '@playwright/test';
  */
 
 async function uploadSyntheticImage(page: import('@playwright/test').Page) {
+  await expect(page.getByTestId('dropzone-input')).toBeAttached();
   await page.evaluate(async () => {
     const canvas = document.createElement('canvas');
     canvas.width = 400;
@@ -36,6 +37,7 @@ async function uploadSyntheticImage(page: import('@playwright/test').Page) {
     input.files = dt.files;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
+  await expect(page.getByTestId('manual-redact-canvas')).toBeVisible();
 }
 
 test('manual redact: draw a box, see it persist, export is enabled', async ({ page }) => {

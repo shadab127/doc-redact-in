@@ -1,87 +1,60 @@
-/*
- * DocRedact.in — Client-side Indian ID document redactor
- * Copyright (C) 2026 Shadab Khan
- *
- * Licensed under the GNU Affero General Public License v3.0 or later.
- * See LICENSE file in the project root for full text.
- */
-
-// Post-build: compute SHA-256 of every inline <script> Next.js emits under
-// out/**/*.html and splice the hashes into the script-src directive of
-// out/_headers. This keeps the production CSP strict (no 'unsafe-inline')
-// while still permitting the React hydration bootstrap to run.
-//
-// Runs after `next build`. If you change the CSP template, edit
-// public/_headers — this script only rewrites script-src.
-
+// GNU Affero General Public License v3.0 or later; Copyright (C) 2026 Shadab Khan. See LICENSE.
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const OUT_DIR = path.resolve('out');
-const HEADERS_FILE = path.join(OUT_DIR, '_headers');
+const INLINE_SCRIPT_RE = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
+
+export function addDocumentCsp(html, template) {
+  const clean = html.replace(/<meta data-docredact-csp="true"[^>]*>/g, '');
+  const hashes = new Set();
+  for (const match of clean.matchAll(INLINE_SCRIPT_RE)) {
+    if (match[1].trim()) hashes.add(`'sha256-${createHash('sha256').update(match[1], 'utf8').digest('base64')}'`);
+  }
+  const directives = template.split(';').map((part) => part.trim())
+    .filter((part) => part && !part.startsWith('frame-ancestors '));
+  const policy = (directives.join('; ') + ';')
+    .replace(/(script-src [^;]*)(;)/, `$1 ${[...hashes].sort().join(' ')}$2`);
+  if (!/<head(?:\s[^>]*)?>/.test(clean)) throw new Error('HTML document is missing a head element');
+  if (!policy.includes("script-src 'self'")) throw new Error('Missing strict script policy');
+  const escaped = policy.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return clean.replace(/<head(?:\s[^>]*)?>/, `$&<meta data-docredact-csp="true" http-equiv="Content-Security-Policy" content="${escaped}">`);
+}
+
+export function buildHeaders(template, csp) {
+  const headers = template.replace(/Content-Security-Policy: [^\n]+/, "Content-Security-Policy: frame-ancestors 'none'")
+    .replace(/(\/(?:_next\/static|vendor)\/\*\n)/g, `$1  Content-Security-Policy: ${csp}\n`);
+  if (headers.split('\n').some((line) => line.length > 2000)) throw new Error('Cloudflare header line exceeds 2000 characters');
+  return headers;
+}
 
 async function walk(dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
   const files = [];
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) files.push(...(await walk(full)));
-    else if (e.isFile() && full.endsWith('.html')) files.push(full);
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...await walk(file));
+    else if (entry.isFile() && file.endsWith('.html')) files.push(file);
   }
   return files;
 }
 
-// Match <script> tags that have no src= attribute (i.e., inline bodies).
-// Next.js emits these with plain <script> (no attributes), which makes this
-// regex safe; if the upstream output ever changes, the no-outbound-network
-// e2e probe will catch the regression because the site stops hydrating.
-const INLINE_SCRIPT_RE = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g;
-
-function sha256Base64(s) {
-  return createHash('sha256').update(s, 'utf8').digest('base64');
-}
-
 async function main() {
-  const htmlFiles = await walk(OUT_DIR);
-  const hashes = new Set();
-
-  for (const file of htmlFiles) {
-    const html = await readFile(file, 'utf8');
-    for (const m of html.matchAll(INLINE_SCRIPT_RE)) {
-      const body = m[1];
-      if (body.trim().length === 0) continue;
-      hashes.add(`'sha256-${sha256Base64(body)}'`);
-    }
+  const out = path.resolve('out');
+  const template = await readFile(path.resolve('public/_headers'), 'utf8');
+  const csp = template.match(/Content-Security-Policy: ([^\n]+)/)?.[1];
+  if (!csp) throw new Error('Missing source CSP');
+  const files = await walk(out);
+  for (const file of files) {
+    await writeFile(file, addDocumentCsp(await readFile(file, 'utf8'), csp));
   }
-
-  const headers = await readFile(HEADERS_FILE, 'utf8');
-  const hashList = [...hashes].sort().join(' ');
-
-  // Splice hashes into the script-src directive. The source of truth CSP
-  // lives in public/_headers and does not contain any sha256- tokens; this
-  // script is the only producer of them in out/_headers.
-  const rewritten = headers.replace(
-    /(script-src [^;]*?)(;)/,
-    (match, prefix, semi) => {
-      if (prefix.includes("'sha256-")) return match; // idempotent
-      return `${prefix} ${hashList}${semi}`;
-    }
-  );
-
-  if (rewritten === headers) {
-    throw new Error(
-      'csp-hashes: failed to locate script-src directive in out/_headers'
-    );
-  }
-
-  await writeFile(HEADERS_FILE, rewritten);
-  console.log(
-    `csp-hashes: wrote ${hashes.size} inline-script hash(es) into ${HEADERS_FILE}`
-  );
+  await writeFile(path.join(out, '_headers'), buildHeaders(template, csp));
+  console.log(`csp-hashes: secured ${files.length} HTML documents; Cloudflare headers remain within the 2000-character limit`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

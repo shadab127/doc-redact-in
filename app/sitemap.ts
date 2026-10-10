@@ -7,6 +7,8 @@
  */
 import type { MetadataRoute } from 'next';
 
+export const dynamic = 'force-static';
+
 const SITE = 'https://docredact.in';
 const LAST_MODIFIED = new Date('2026-05-02');
 

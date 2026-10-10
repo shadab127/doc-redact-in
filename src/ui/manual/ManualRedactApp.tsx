@@ -8,6 +8,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { clearDocumentSessions, documentSessionGeneration, documentSessionSignal } from '../documentSession';
 import { DropZone } from '../DropZone';
 import { PageNavigator } from '../PageNavigator';
 import { redactedFilename, triggerDownload } from '../download';
@@ -174,12 +175,21 @@ export function ManualRedactApp() {
 
   const onFile = useCallback(
     async (file: File) => {
+      clearDocumentSessions();
+      const generation = documentSessionGeneration();
       setStatus('loading');
       setError(null);
       try {
         validateDocumentFile(file);
         const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
         const pages = isPdf ? await loadPdfToRasters(file) : [await loadImageToRaster(file)];
+        if (generation !== documentSessionGeneration()) {
+          for (const page of pages) {
+            page.canvas.width = 0;
+            page.canvas.height = 0;
+          }
+          return;
+        }
         applySession({
           fileName: file.name,
           pages,
@@ -188,6 +198,7 @@ export function ManualRedactApp() {
           dirty: false,
         });
       } catch (e) {
+        if (generation !== documentSessionGeneration()) return;
         setError({ friendly: friendlyError(e), raw: captureRawError(e) });
         setStatus('error');
       }
@@ -226,7 +237,8 @@ export function ManualRedactApp() {
   }, [applySession]);
 
   const reset = useCallback(() => {
-    setManualSession(null);
+    clearDocumentSessions();
+    setPendingHandoff(null);
     setStatus('idle');
     setStateLocal(null);
     setBoxesByPageLocal(new Map());
@@ -263,6 +275,8 @@ export function ManualRedactApp() {
 
   const download = useCallback(async () => {
     if (!state) return;
+    const generation = documentSessionGeneration();
+    const signal = documentSessionSignal();
     setStatus('exporting');
     setError(null);
     try {
@@ -276,10 +290,12 @@ export function ManualRedactApp() {
           manualBoxes: boxes,
         };
       });
-      const bytes = await flattenToImageOnlyPdf(pages);
+      const bytes = await flattenToImageOnlyPdf(pages, { signal });
+      if (generation !== documentSessionGeneration()) return;
       triggerDownload(bytes, redactedFilename(state.fileName));
       setStatus('ready');
     } catch (e) {
+      if (generation !== documentSessionGeneration()) return;
       setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
@@ -388,6 +404,9 @@ export function ManualRedactApp() {
                 ? 'Building PDF…'
                 : `Download redacted PDF (${totalBoxes} box${totalBoxes === 1 ? '' : 'es'})`}
             </button>
+            <div style={{ fontSize: 12, marginTop: 6, color: 'var(--muted)' }}>
+              Navigation keeps your document in this tab. Start over clears both modes.
+            </div>
             <div style={{ fontSize: 12, marginTop: 6, color: 'var(--muted)' }}>
               Image-only output — no searchable text, larger file. Verify before sharing.
             </div>

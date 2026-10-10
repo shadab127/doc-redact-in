@@ -95,22 +95,25 @@ function hasSuspiciousAadhaar(detections: readonly Detection[]): boolean {
   return detections.some((d) => d.kind === 'aadhaar' && d.suspicious === true);
 }
 
-/**
- * Drop any suspicious Aadhaar detection when a clean one exists for the
- * same 12-digit value. The inline path occasionally produces a valid
- * digit string inside a hallucinated-wide bbox that masks empty pixels;
- * once a band re-OCR has produced a cleanly-bounded detection for the
- * same number, the suspicious one adds nothing but a misplaced mask.
- */
-function dropSuspiciousWhenCleanExists(detections: readonly Detection[]): Detection[] {
-  const cleanValues = new Set<string>();
-  for (const d of detections) {
-    if (d.kind === 'aadhaar' && !d.suspicious) cleanValues.add(d.value);
+function sameAadhaarOccurrence(a: Detection, b: Detection): boolean {
+  return a.kind === 'aadhaar' && b.kind === 'aadhaar' && a.value === b.value
+    && a.bbox.x < b.bbox.x + b.bbox.w && b.bbox.x < a.bbox.x + a.bbox.w
+    && a.bbox.y < b.bbox.y + b.bbox.h && b.bbox.y < a.bbox.y + a.bbox.h;
+}
+
+function mergeAadhaarRecovery(current: readonly Detection[], recovered: readonly Detection[]): Detection[] {
+  const candidates = [...current, ...recovered.filter((d) => d.kind === 'aadhaar')];
+  const clean = candidates.filter((d) => d.kind === 'aadhaar' && !d.suspicious);
+  const merged: Detection[] = [];
+  for (const d of candidates) {
+    if (d.kind !== 'aadhaar') {
+      merged.push(d);
+      continue;
+    }
+    if (d.suspicious && clean.some((c) => sameAadhaarOccurrence(d, c))) continue;
+    if (!merged.some((m) => sameAadhaarOccurrence(d, m))) merged.push(d);
   }
-  if (cleanValues.size === 0) return detections.slice();
-  return detections.filter(
-    (d) => !(d.kind === 'aadhaar' && d.suspicious === true && cleanValues.has(d.value))
-  );
+  return merged;
 }
 
 /**
@@ -254,20 +257,6 @@ async function runDetectors(
   return { detections: [...text, ...faces, ...qrs], tokens };
 }
 
-/**
- * Last-chance Aadhaar recovery: slice the source canvas into 3 overlapping
- * horizontal bands and re-OCR each band. On PDFs where the card occupies
- * only a small fraction of the rasterized page (e.g. the back-only panel
- * of an e-Aadhaar printout), the full-page Tesseract pass can misread the
- * digit row entirely. Running OCR on a taller, narrower band lets the
- * layout analyzer lock onto the digits at a larger relative scale.
- *
- * Bounded to 3 OCR passes (one per band). Stops early when (a) no suspicious
- * input detections exist and any band produces an Aadhaar hit, or (b) every
- * suspicious input detection has a clean counterpart in the merged set.
- * Returns the best-seen `refreshed` set even if no band fully succeeded;
- * returns null if no band produced any Aadhaar hit.
- */
 async function recoverAadhaarFromBands(
   canvas: HTMLCanvasElement | ImageBitmap,
   tokens: readonly OCRToken[],
@@ -294,30 +283,23 @@ async function recoverAadhaarFromBands(
 
   let lineIdBase = (tokens.reduce((m, t) => Math.max(m, t.lineId), -1) ?? -1) + 1000;
   let bestRefreshed: Detection[] | null = null;
+  const mergedTokens = [...tokens];
   for (const [y0, y1] of bandFracs) {
     const band = buildHorizontalBandCanvas(canvas, y0, y1);
     if (!band) continue;
     const bandTokens = await ocr.recognize(band);
     const translated = translateTokensFromBand(bandTokens, band, lineIdBase);
     lineIdBase += 1000;
-    const merged = [...tokens, ...translated];
-    const refreshed = textDetections(merged);
+    mergedTokens.push(...translated);
+    const refreshed = mergeAadhaarRecovery(textDetections(mergedTokens), []);
 
     if (!hasAadhaarHit(refreshed)) continue;
 
-    // A suspicious detection is replaced when the refreshed set contains a
-    // clean detection with the same value that overlaps the suspicious
-    // bbox. (The bbox-overlap dedup in detectAadhaar already drops the
-    // suspicious inline hit when a clean triplet overlaps it — so in
-    // practice "replaced" means the suspicious detection no longer
-    // appears in the refreshed set at all.)
     const suspiciousRemaining = suspiciousToReplace.filter((orig) =>
-      refreshed.some(
-        (d) => d.kind === 'aadhaar' && d.suspicious && d.value === orig.value
-      )
+      !refreshed.some((d) => !d.suspicious && sameAadhaarOccurrence(orig, d))
     );
     bestRefreshed = refreshed;
-    if (suspiciousRemaining.length === 0) return refreshed;
+    if (suspiciousToReplace.length > 0 && suspiciousRemaining.length === 0) return refreshed;
   }
   return bestRefreshed;
 }
@@ -401,30 +383,7 @@ async function runOnImage(
         );
         effectiveDetections = [...recovered, ...nonText];
       } else {
-        // Prior suspicious hit exists. Merge any *new* recovered Aadhaar
-        // detections (values not already in the current set) alongside
-        // existing ones, then drop the suspicious ones if a clean same-
-        // value counterpart now exists.
-        const existingValues = new Set(
-          effectiveDetections.filter((d) => d.kind === 'aadhaar').map((d) => d.value)
-        );
-        const additions = recovered.filter(
-          (d) => d.kind === 'aadhaar' && !existingValues.has(d.value)
-        );
-        const merged = [...effectiveDetections, ...additions];
-        // Also replace suspicious detections whose value now has a clean
-        // counterpart from the recovery pass.
-        const cleanByValue = new Map<string, Detection>();
-        for (const d of recovered) {
-          if (d.kind === 'aadhaar' && !d.suspicious) cleanByValue.set(d.value, d);
-        }
-        const replaced = merged.map((d) => {
-          if (d.kind === 'aadhaar' && d.suspicious && cleanByValue.has(d.value)) {
-            return cleanByValue.get(d.value)!;
-          }
-          return d;
-        });
-        effectiveDetections = dropSuspiciousWhenCleanExists(replaced);
+        effectiveDetections = mergeAadhaarRecovery(effectiveDetections, recovered);
       }
     }
   }
@@ -497,24 +456,7 @@ async function runOnPdf(
             );
             finalDetections = [...recovered, ...nonText];
           } else {
-            const existingValues = new Set(
-              finalDetections.filter((d) => d.kind === 'aadhaar').map((d) => d.value)
-            );
-            const additions = recovered.filter(
-              (d) => d.kind === 'aadhaar' && !existingValues.has(d.value)
-            );
-            const merged = [...finalDetections, ...additions];
-            const cleanByValue = new Map<string, Detection>();
-            for (const d of recovered) {
-              if (d.kind === 'aadhaar' && !d.suspicious) cleanByValue.set(d.value, d);
-            }
-            const replaced = merged.map((d) => {
-              if (d.kind === 'aadhaar' && d.suspicious && cleanByValue.has(d.value)) {
-                return cleanByValue.get(d.value)!;
-              }
-              return d;
-            });
-            finalDetections = dropSuspiciousWhenCleanExists(replaced);
+            finalDetections = mergeAadhaarRecovery(finalDetections, recovered);
           }
         }
       }

@@ -1,12 +1,14 @@
 // GNU Affero General Public License v3.0 or later; Copyright (C) 2026 Shadab Khan. See LICENSE.
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import { isAllowedRedactionRequest } from './helpers/privacy';
+import { isAllowedRedactionRequest, redactionAssetPaths } from './helpers/privacy';
+
+test.skip(process.env.E2E_PRODUCTION !== '1', 'Privacy assertions require the production export; Next.js development diagnostics send POST requests.');
 
 function watchRequests(context: BrowserContext, baseURL: string) {
   const violations: string[] = [];
   context.on('request', (request) => {
-    if (!isAllowedRedactionRequest(request, new URL(baseURL).origin)) {
+    if (!isAllowedRedactionRequest(request, new URL(baseURL).origin, redactionAssetPaths())) {
       const url = new URL(request.url());
       violations.push(`${request.method()} ${url.origin} ${url.pathname}`);
     }

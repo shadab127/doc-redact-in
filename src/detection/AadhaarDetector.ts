@@ -144,9 +144,9 @@ export function detectAadhaar(tokens: OCRToken[]): Detection[] {
     }
   }
 
-  for (const t of tokens) {
-    const d = tryInlineMatches(t);
-    if (!d) continue;
+  const inline = tokens.map(tryInlineMatches).filter((d): d is Detection => d !== null);
+  inline.sort((a, b) => Number(!!a.suspicious) - Number(!!b.suspicious));
+  for (const d of inline) {
     const duplicate = out.some(
       (e) => e.value === d.value && bboxesOverlap(e.bbox, d.bbox)
     );

@@ -18,6 +18,7 @@ const CORRUPT_PNG_BASE64 = Buffer.from(
 test('corrupt PNG shows a friendly error, not a raw vendor string', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByTestId('dropzone-input')).toBeAttached();
 
   await page.evaluate((base64) => {
     const binary = atob(base64);

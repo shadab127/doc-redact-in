@@ -6,14 +6,9 @@
  * See LICENSE file in the project root for full text.
  */
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
+import { RedactorApp } from '@/src/ui/ClientRedactors';
 import Link from 'next/link';
 import { REDACT_PAN_FAQ } from '@/src/content/faq';
-
-const RedactorApp = dynamic(
-  () => import('@/src/ui/RedactorApp').then((m) => m.RedactorApp),
-  { ssr: false }
-);
 
 export const metadata: Metadata = {
   title: 'Redact PAN Card Online — Free, Browser-Only, Open Source | DocRedact.in',

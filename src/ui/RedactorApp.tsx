@@ -8,6 +8,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { clearDocumentSessions, documentSessionGeneration, documentSessionSignal } from './documentSession';
 import { useRouter } from 'next/navigation';
 import { DropZone } from './DropZone';
 import { CameraCapture } from './CameraCapture';
@@ -196,6 +197,8 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
   const busy = status === 'running' || status === 'downloading';
 
   const onFile = async (file: File) => {
+    clearDocumentSessions();
+    const generation = documentSessionGeneration();
     setStatus('running');
     setError(null);
     setState(null);
@@ -203,6 +206,13 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
     setStage('');
     try {
       const next = await processDocument(file, setStage);
+      if (generation !== documentSessionGeneration()) {
+        for (const raster of next.rasters) {
+          raster.canvas.width = 0;
+          raster.canvas.height = 0;
+        }
+        return;
+      }
       const defaultEnabled = defaultEnabledMap(next.result.pages);
       setState(next);
       setEnabledLocal(defaultEnabled);
@@ -216,13 +226,14 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
       });
       setStatus('done');
     } catch (e) {
+      if (generation !== documentSessionGeneration()) return;
       setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
   };
 
   const startOver = () => {
-    setRedactorSession(null);
+    clearDocumentSessions();
     setStatus('idle');
     setState(null);
     setEnabledLocal(new Map());
@@ -301,6 +312,8 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
 
   const download = async () => {
     if (!state) return;
+    const generation = documentSessionGeneration();
+    const signal = documentSessionSignal();
     setStatus('downloading');
     try {
       const filteredPerPage = filterEnabledDetections(state.result.pages, enabled);
@@ -313,10 +326,12 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
           detections: filteredPerPage[idx] ?? [],
         };
       });
-      const pdfBytes = await flattenToImageOnlyPdf(pages);
+      const pdfBytes = await flattenToImageOnlyPdf(pages, { signal });
+      if (generation !== documentSessionGeneration()) return;
       triggerDownload(pdfBytes, redactedFilename(state.fileName));
       setStatus('done');
     } catch (e) {
+      if (generation !== documentSessionGeneration()) return;
       setError({ friendly: friendlyError(e), raw: captureRawError(e) });
       setStatus('error');
     }
@@ -516,6 +531,9 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
               >
                 Download redacted PDF ({enabledCount} masked)
               </button>
+              <div style={{ fontSize: 12, marginTop: 6 }}>
+                Navigation keeps your document in this tab. Start over clears both modes.
+              </div>
               <div style={{ fontSize: 12, marginTop: 6 }}>
                 Image-only output — no searchable text, larger file. Verify before
                 sharing.
