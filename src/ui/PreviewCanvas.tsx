@@ -10,6 +10,7 @@
 import { useEffect, useRef } from 'react';
 import type { Detection, DetectionKind } from '@/src/detection/types';
 import type { RasterizedPageLike } from '@/src/detection/DetectionOrchestrator';
+import { getMaskBounds } from '@/src/masking/CanvasMaskRenderer';
 
 const KIND_STROKE: Record<DetectionKind, string> = {
   aadhaar: '#ff9f43',
@@ -59,16 +60,23 @@ export function PreviewCanvas({
       ctx.lineWidth = isHighlight ? 3 : 2;
       ctx.setLineDash(enabled ? [] : [6, 4]);
       ctx.globalAlpha = enabled ? 1 : 0.55;
+      const bounds = getMaskBounds(d, raster.width, raster.height);
+      if (enabled) {
+        ctx.fillStyle = stroke;
+        ctx.globalAlpha = 0.2;
+        ctx.fillRect(bounds.x * scale, bounds.y * scale, bounds.w * scale, bounds.h * scale);
+        ctx.globalAlpha = 1;
+      }
       ctx.strokeRect(
-        d.bbox.x * scale,
-        d.bbox.y * scale,
-        d.bbox.w * scale,
-        d.bbox.h * scale
+        bounds.x * scale,
+        bounds.y * scale,
+        bounds.w * scale,
+        bounds.h * scale
       );
     });
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
-  }, [detections, enabledFlags, highlightIndex, displayWidth, displayHeight, scale]);
+  }, [detections, enabledFlags, highlightIndex, displayWidth, displayHeight, scale, raster.width, raster.height]);
 
   // Draw the source raster onto a sibling canvas that fills the same space;
   // we use CSS absolute positioning to stack the overlay on top of the image.
@@ -89,13 +97,14 @@ export function PreviewCanvas({
       style={{
         position: 'relative',
         width: displayWidth,
-        height: displayHeight,
+        aspectRatio: `${displayWidth} / ${displayHeight}`,
         maxWidth: '100%',
         borderRadius: 8,
         overflow: 'hidden',
         background: '#111318',
       }}
-      aria-label="Document preview with detection overlays"
+      aria-label="Document preview with transparent redaction selections"
+      data-testid="redaction-preview"
     >
       <canvas
         ref={sourceRef}

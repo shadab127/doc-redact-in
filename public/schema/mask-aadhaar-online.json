@@ -4,26 +4,26 @@
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "Is it safe to upload my Aadhaar to this site?",
+      "name": "Is my Aadhaar uploaded to this site?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "You are not uploading anything. DocRedact.in runs entirely in your browser tab — no server ever sees your file. Open your browser DevTools → Network tab while you use it and verify this for yourself. Our code is public on GitHub under AGPL-3.0."
+        "text": "No. Your browser reads and masks your document locally. Software assets and optional Cloudflare Web Analytics requests use the network, but they do not carry your document. You can inspect requests in DevTools → Network and read the source on GitHub."
       }
     },
     {
       "@type": "Question",
-      "name": "What is masked Aadhaar, and why do I need it?",
+      "name": "What does masked or redacted Aadhaar mean?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "A masked Aadhaar hides the first 8 digits of your 12-digit Aadhaar number, leaving only the last 4 visible. UIDAI and the RBI recommend using masked Aadhaar instead of the full card whenever possible — for KYC verification, tenancy agreements, employment onboarding, and similar flows where someone needs proof of identity but not your full Aadhaar number. Under the DPDP Act (rules notified November 2025), data fiduciaries who mishandle Aadhaar face fiduciary liability, so many now prefer receiving masked copies."
+        "text": "Masked Aadhaar hides the first 8 digits of the 12-digit number, leaving the last 4 visible. DocRedact creates a locally redacted copy of a file you already have, not an official UIDAI-issued download. Check which fields your recipient requires before sharing."
       }
     },
     {
       "@type": "Question",
-      "name": "What does this tool actually mask?",
+      "name": "What does this tool mask?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "By default: (1) the first 8 digits of your Aadhaar number, (2) your PAN number, (3) passport MRZ (machine-readable zone), (4) the UIDAI QR code, and (5) your face photograph on the card. Each detection appears as a checkbox — you can uncheck anything that is a false positive or that you want to leave visible."
+        "text": "Detected Aadhaar numbers have their first 8 digits selected. Detected PAN numbers, passport MRZ regions, probable UIDAI QR codes and faces are also selected by default. Tinted selections show the exported mask boundaries. Uncheck unwanted detections and use manual mode to cover missed content. Other QR codes are masked only if you select them."
       }
     },
     {
@@ -31,55 +31,47 @@
       "name": "Can I use this on my phone?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. On mobile, the primary button is \"📷 Take Photo\" — it opens your phone camera, you photograph the card, and the redaction runs entirely on-device. No photo gallery upload, no server round-trip."
+        "text": "Yes. Take a photo, choose an existing file, or try the synthetic sample. Processing runs in your mobile browser. Use a clear JPG or PNG photo and review the result before downloading."
       }
     },
     {
       "@type": "Question",
-      "name": "What file types work?",
+      "name": "What file types and limits apply?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "JPG, PNG, and PDF, up to 20 MB. PDFs are re-rendered as image-only PDFs (no searchable text layer) so nothing can be recovered via pdftotext or similar tools."
+        "text": "JPG, PNG, WebP and PDF up to 20 MB, with up to 10 PDF pages. There is also a 40-million-pixel budget per page and an 80-million-pixel budget for the document; PDF budgets apply after rasterization. Large files may need resizing or splitting. Password-protected PDFs must first be saved as an unprotected copy on your device."
       }
     },
     {
       "@type": "Question",
-      "name": "How does the Aadhaar detection work?",
+      "name": "Can it download masked Aadhaar without OTP?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "The tool runs Tesseract OCR on your document in the browser, finds any 12-digit sequence, and validates it against UIDAI's Verhoeff checksum. Only numbers that pass the Verhoeff check are treated as Aadhaar candidates — this prevents false positives from phone numbers, order IDs, or garbled OCR."
+        "text": "No. DocRedact does not retrieve Aadhaar or bypass UIDAI authentication. It masks a document you already have. For an official masked Aadhaar download, use the UIDAI myAadhaar portal and follow its requirements."
       }
     },
     {
       "@type": "Question",
-      "name": "Does the tool read my biometric data or Aadhaar database?",
+      "name": "Does it access the UIDAI database or decode QR codes?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "No. It does not touch the UIDAI database, does not resolve the QR payload, and does not extract biometric information. It only finds the printed number, the photo, and the QR on the paper/PDF card in front of you."
+        "text": "It does not access the UIDAI database. QR codes are decoded locally to help classify them, and detected faces are located locally without identifying the person. QR contents, OCR text and document pixels are not sent to a server. QR codes can contain personal information, so review them as well as the printed number."
       }
     },
     {
       "@type": "Question",
-      "name": "Is the output file safe to email or upload to a portal?",
+      "name": "Can the masked content be recovered from the output?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "The output PDF is flattened to an image-only PDF — the original text layer is discarded, so whoever receives it cannot extract the masked digits with copy-paste or pdftotext. The masked regions are drawn as solid black rectangles on the image, so they cannot be un-masked. You should still verify the output before sharing."
+        "text": "The export paints solid rectangles onto page images and creates a new image-only PDF. It does not retain the original text layer or removable mask shapes. This protects the regions actually covered, not content the detector missed. Open the downloaded file and verify every page before sharing. File size varies and text search is unavailable."
       }
     },
     {
       "@type": "Question",
-      "name": "Why is the output file bigger than the input?",
+      "name": "Why is this free?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Image-only PDFs are larger than text-layer PDFs — that is the cost of guaranteeing that masked content cannot be text-extracted. Expect 2–5× the input size for typical scans."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Why are you giving this away free?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "The consumer tool is free forever; we make money through an API for businesses (HR tech, fintech KYC) that need to integrate this into their pipelines. See /api-waitlist if that is you."
+        "text": "The consumer tool is free and open source. A browser-side integration for businesses is planned, but is not available yet. The API waitlist is for updates and discussions about that future offering."
       }
     }
   ]

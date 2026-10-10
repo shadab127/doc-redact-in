@@ -13,6 +13,7 @@ export interface FlattenablePage {
   widthPt: number;
   heightPt: number;
   detections: readonly Detection[];
+  manualBoxes?: readonly { x: number; y: number; w: number; h: number }[];
 }
 
 export interface FlattenOptions {
@@ -63,11 +64,26 @@ export async function flattenToImageOnlyPdf(
   const doc = await pdfLib.PDFDocument.create();
 
   for (const p of pages) {
-    renderMasks(p.canvas, p.detections);
-    const jpeg = await canvasToJpegBytes(p.canvas, quality);
-    const img = await doc.embedJpg(jpeg);
-    const page = doc.addPage([p.widthPt, p.heightPt]);
-    page.drawImage(img, { x: 0, y: 0, width: p.widthPt, height: p.heightPt });
+    const output = document.createElement('canvas');
+    output.width = p.canvas.width;
+    output.height = p.canvas.height;
+    try {
+      const ctx = output.getContext('2d');
+      if (!ctx) throw new Error('2D context unavailable');
+      ctx.drawImage(p.canvas, 0, 0);
+      renderMasks(output, p.detections);
+      ctx.fillStyle = '#000000';
+      for (const box of p.manualBoxes ?? []) {
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+      }
+      const jpeg = await canvasToJpegBytes(output, quality);
+      const img = await doc.embedJpg(jpeg);
+      const page = doc.addPage([p.widthPt, p.heightPt]);
+      page.drawImage(img, { x: 0, y: 0, width: p.widthPt, height: p.heightPt });
+    } finally {
+      output.width = 0;
+      output.height = 0;
+    }
   }
 
   return doc.save();

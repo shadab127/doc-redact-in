@@ -83,19 +83,21 @@ export default function HideAadhaarNumberPdfPage() {
         <ol>
           <li>
             Drop your PDF into the tool above (or tap to pick it from your files
-            on a phone). Up to 20 MB; JPG and PNG work too.
+            on a phone). Up to 20 MB and 10 pages, subject to a rasterized pixel
+            budget; JPG, PNG and WebP work too.
           </li>
           <li>
             Your browser reads each page, runs Tesseract OCR on it, and looks for
-            a 12-digit Aadhaar number, validating each candidate with the UIDAI
-            Verhoeff checksum so random 12-digit strings are not masked by
-            mistake. It also finds the UIDAI secure QR code, your face, and any
-            PAN or passport MRZ on the page.
+            a 12-digit Aadhaar number, checking each candidate with the Verhoeff
+            checksum. This reduces false positives but does not prove a detected
+            region is an Aadhaar number. It also looks for probable UIDAI QR
+            codes, faces, PAN numbers and passport MRZ regions.
           </li>
           <li>
             Review the detections. Each one is a checkbox — the first 8 Aadhaar
-            digits, the QR, the photo. Confirm what should be covered (everything
-            is on by default) and switch off anything that was a false positive.
+            digits, the probable UIDAI QR, the photo. Confirm what should be
+            covered and switch off any false positives. Other QR codes are not
+            selected by default.
           </li>
           <li>
             Download. The tool flattens each page to an image and writes a new
@@ -120,10 +122,8 @@ export default function HideAadhaarNumberPdfPage() {
         </p>
         <ol>
           <li>
-            Open the eAadhaar in any PDF viewer and enter your password. The UIDAI
-            password is the first four letters of your name in capitals followed
-            by your year of birth — for example, a person named Suresh born in
-            1990 would use <code>SURE1990</code>.
+            Open the eAadhaar in a trusted local PDF viewer and enter the password
+            provided in the official download instructions.
           </li>
           <li>
             Use the viewer&apos;s Print → &ldquo;Save as PDF&rdquo; (or
@@ -144,8 +144,8 @@ export default function HideAadhaarNumberPdfPage() {
         <p>
           The thing that makes the redaction trustworthy — discarding the text
           layer — is also the thing that makes the output a pure image PDF. That
-          has two visible trade-offs: the file is typically 2–5× the size of the
-          input, and you can no longer Ctrl+F search its text. For a document you
+          has two visible trade-offs: file size may increase, and you can no
+          longer Ctrl+F search its text. For a document you
           are sharing as proof of identity, that is the right trade: you are
           paying file size for the guarantee that your masked Aadhaar number
           cannot be text-extracted by whoever receives it. The disclaimer under
@@ -160,8 +160,9 @@ export default function HideAadhaarNumberPdfPage() {
           Your Aadhaar PDF never leaves your browser tab. There is no server in
           the loop to receive it — the tool is a static bundle that runs on your
           own device. Open DevTools → Network and watch while you redact: no
-          request carries your file. Disconnect your internet after the page loads
-          and it still works. And the full pipeline is open source on{' '}
+          request carries your file. First use downloads software and model assets;
+          offline use requires those assets to be loaded and available in your
+          browser cache. And the full pipeline is open source on{' '}
           <a
             href="https://github.com/shadab127/doc-redact-in"
             rel="noopener noreferrer"
@@ -169,8 +170,9 @@ export default function HideAadhaarNumberPdfPage() {
           >
             GitHub
           </a>{' '}
-          under AGPL-3.0, with a CI test that fails the build if any
-          document-carrying request is ever added.
+          under AGPL-3.0, with browser tests checking network requests during
+          detection and export. Cloudflare Web Analytics sends separate page
+          usage statistics, not your document.
         </p>
       </section>
 

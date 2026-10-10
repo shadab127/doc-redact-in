@@ -16,25 +16,30 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <TextPage title="Privacy policy" lastUpdated="2026-05-02">
+    <TextPage title="Privacy policy" lastUpdated="2026-10-10">
       <p>
         <strong>The short version: we do not see your documents.</strong>
       </p>
       <p>
-        DocRedact.in processes your file entirely in your browser tab. It never
-        leaves your device. We have no servers that touch your document, no
-        database that stores it, no API that analyzes it. If you disconnect from
-        the internet after loading this page, the tool still works — because
-        everything runs locally.
+        DocRedact.in runs OCR, detection and export entirely in your browser tab.
+        Your document is not uploaded to our infrastructure. First use downloads
+        software and model assets from this site. Offline use depends on those
+        assets already being loaded and available in your browser cache; loading
+        the page alone does not guarantee it.
       </p>
 
       <h2>What we do collect</h2>
       <ul>
         <li>
           <strong>Page view counts</strong>, via Cloudflare Web Analytics. This
-          tells us which pages are visited, from which country (state-level at
-          most), and from which referring site. No cookies. No IP addresses
-          stored. No fingerprints. No ability to identify you.
+          tells us which pages are visited, approximate countries and referring
+          sites. Its script and collection endpoint are hosted by Cloudflare,
+          so analytics makes external requests. We do not send filenames, OCR
+          text, QR contents or document pixels to analytics. See{' '}
+          <a href="https://developers.cloudflare.com/web-analytics/" target="_blank" rel="noopener noreferrer">
+            Cloudflare&apos;s Web Analytics documentation
+          </a>{' '}
+          for its current data practices.
         </li>
         <li>
           <strong>If you use the B2B API waitlist form</strong>: your email,
@@ -52,7 +57,7 @@ export default function PrivacyPage() {
         <li>Your documents, or any part of them.</li>
         <li>OCR text extracted from your documents.</li>
         <li>Detection coordinates, filenames, or file sizes of what you redact.</li>
-        <li>Cookies. Tracking pixels. Third-party trackers. Session replay.</li>
+        <li>Advertising trackers or session replay.</li>
       </ul>
 
       <h2>Verify it yourself</h2>
@@ -65,9 +70,11 @@ export default function PrivacyPage() {
         >
           github.com/shadab127/doc-redact-in
         </a>
-        . The &ldquo;no network calls during redaction&rdquo; property is tested in
-        CI. Open your browser&apos;s DevTools, go to the Network tab, and watch —
-        you will see no requests leave your machine while you redact.
+        . Browser tests check network requests during detection and export,
+        including same-origin requests and manual redaction. Open DevTools →
+        Network and watch: you may see software downloads and analytics requests,
+        but no request carrying your document. The tests cover specific fixtures
+        and are regression checks, not a guarantee about every possible input.
       </p>
 
       <h2>Your rights</h2>
@@ -79,13 +86,12 @@ export default function PrivacyPage() {
         deletion of — there was nothing to delete to begin with.
       </p>
 
-      <h2>DPDP Act framing</h2>
+      <h2>Contact information</h2>
       <p>
-        DocRedact.in is not a Data Fiduciary for the documents you redact,
-        because your document contents do not traverse our infrastructure at any
-        point. We are a Data Fiduciary for the small amount of contact
-        information you may voluntarily submit via the waitlist or contact
-        forms, and we handle that information as described above.
+        Contact and waitlist forms are separate from document redaction. Only
+        the information you enter in those forms is sent to our infrastructure.
+        A future business integration is planned to keep document processing on
+        the user&apos;s device; no server-side document API is currently offered.
       </p>
 
       <p style={{ marginTop: 32, fontSize: 13, color: 'var(--muted)' }}>

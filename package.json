@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:production": "env -u NEXT_PUBLIC_CF_ANALYTICS_TOKEN npm run build && E2E_PRODUCTION=1 playwright test"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.35",

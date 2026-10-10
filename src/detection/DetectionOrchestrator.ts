@@ -5,6 +5,7 @@
  * Licensed under the GNU Affero General Public License v3.0 or later.
  * See LICENSE file in the project root for full text.
  */
+import { validatePageCount, validateRasterBudget } from '@/src/documents/limits';
 import { detectAadhaar } from './AadhaarDetector';
 import { detectPan } from './PanDetector';
 import { detectPassportMrz } from './PassportMrzDetector';
@@ -451,9 +452,14 @@ async function runOnPdf(
   const totalStart = Date.now();
   const buf = new Uint8Array(await blob.arrayBuffer());
   const pipeline = pipelineFactory();
-  const info = await pipeline.load(buf);
   const pages: PageDetectionResult[] = [];
   try {
+    const info = await pipeline.load(buf);
+    validatePageCount(info.numPages);
+    let usedPixels = 0;
+    for (const size of info.pageSizesPt) {
+      usedPixels = validateRasterBudget(size.width * scale, size.height * scale, usedPixels);
+    }
     for (let i = 0; i < info.numPages; i++) {
       const pageStart = Date.now();
       onStage?.(`Rasterising page ${i + 1}/${info.numPages}…`, i, info.numPages);
@@ -520,15 +526,15 @@ async function runOnPdf(
         elapsedMs: Date.now() - pageStart,
       });
     }
+    return {
+      pages,
+      totalElapsedMs: Date.now() - totalStart,
+      sourceKind: 'pdf',
+      pageSizesPt: info.pageSizesPt,
+    };
   } finally {
     await pipeline.destroy();
   }
-  return {
-    pages,
-    totalElapsedMs: Date.now() - totalStart,
-    sourceKind: 'pdf',
-    pageSizesPt: info.pageSizesPt,
-  };
 }
 
 function resolveRunners(opts: RunDetectionOptions) {
@@ -548,7 +554,12 @@ export async function runDetection(
       'For PDF input, call runDetectionOnDocument(file, { pdfPipeline }) instead of runDetection.'
     );
   }
-  return runOnImage(image, resolveRunners(opts));
+  const runners = resolveRunners(opts);
+  try {
+    return await runOnImage(image, runners);
+  } finally {
+    if (!opts.ocr) await runners.ocr.terminate();
+  }
 }
 
 export interface RunDocumentOptions extends RunDetectionOptions {
@@ -562,10 +573,18 @@ export async function runDetectionOnDocument(
   opts: RunDocumentOptions = {}
 ): Promise<DocumentDetectionResult> {
   const runners = resolveRunners(opts);
-  // scale=3 ≈ 216 DPI from the PDF's 72 DPI base; Tesseract's published
-  // accuracy numbers assume ≥200 DPI input. At scale 2 we saw the OCR miss
-  // Aadhaar numbers on otherwise-clean UIDAI e-Aadhaar PDFs; scale 3 closes
-  // that gap at ~2× the per-page rasterization cost.
+  try {
+    return await runDocumentWithRunners(input, opts, runners);
+  } finally {
+    if (!opts.ocr) await runners.ocr.terminate();
+  }
+}
+
+async function runDocumentWithRunners(
+  input: Blob | File | ImageBitmap | HTMLCanvasElement,
+  opts: RunDocumentOptions,
+  runners: ReturnType<typeof resolveRunners>
+): Promise<DocumentDetectionResult> {
   const scale = opts.rasterizeScale ?? 3;
 
   if (isPdfBlob(input)) {

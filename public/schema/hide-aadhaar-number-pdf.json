@@ -4,18 +4,18 @@
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "Is it safe to open my Aadhaar PDF here?",
+      "name": "Is my Aadhaar PDF uploaded?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes — because the PDF never leaves your browser tab. DocRedact.in has no server that receives your file. The PDF is parsed, redacted, and re-saved entirely on your device. You can confirm this in DevTools → Network, and read every line of the code on GitHub under AGPL-3.0."
+        "text": "No. Your browser parses, masks and exports it locally. First use downloads software assets, and optional analytics sends page usage statistics, but no request carries your document."
       }
     },
     {
       "@type": "Question",
-      "name": "My eAadhaar PDF is password-protected — does it work?",
+      "name": "Does a password-protected eAadhaar PDF work?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Not directly. The official UIDAI eAadhaar download is encrypted, and the tool cannot open an encrypted PDF. Remove the password first: open the PDF in any viewer using your password (the UIDAI password is the first four letters of your name in capitals followed by your year of birth, e.g. SURE1990), then use Print → Save as PDF to create an unprotected copy. Drop that copy into DocRedact.in. This extra step happens on your device too — the unprotected copy is never uploaded anywhere."
+        "text": "Not directly. Open the PDF in a trusted local viewer using your password, then use Print → Save as PDF if the viewer permits it to create an unprotected copy. Choose that copy in DocRedact. Keep it on your device and delete it when no longer needed."
       }
     },
     {
@@ -23,15 +23,15 @@
       "name": "What does it hide in the PDF?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "By default: the first 8 digits of any Aadhaar number it finds (last 4 stay visible, the UIDAI convention), the UIDAI secure QR code, your face photograph, and any PAN or passport MRZ on the page. Each detection is a checkbox you can toggle before downloading."
+        "text": "Detected first 8 Aadhaar digits, probable UIDAI QR codes, faces, PAN numbers and passport MRZ regions are selected by default. The last 4 Aadhaar digits stay visible. Review selections, uncheck unwanted regions and use manual mode to cover anything missed."
       }
     },
     {
       "@type": "Question",
-      "name": "Does it actually remove the number from the text layer, or just cover it visually?",
+      "name": "Does it remove the original text layer?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Both, and this is the key point for PDFs. A PDF that only has a black box drawn over the text still contains the original digits in its text layer — anyone can copy-paste or run pdftotext and recover them. DocRedact.in re-renders every page to an image and builds a new image-only PDF, so there is no text layer left at all. The masked digits are gone, not merely hidden."
+        "text": "Yes. Every exported page is a new image with solid masks already painted onto it. The output has no original text layer or removable mask shapes. This only protects covered regions; review all pages for missed content."
       }
     },
     {
@@ -39,31 +39,23 @@
       "name": "Does it work on multi-page PDFs?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. Detection runs on every page up front, and the preview lets you page through with prev/next to confirm what was found on each page before you download."
+        "text": "Yes, up to 20 MB and 10 pages, subject to a 40-million-pixel budget per rasterized page and 80 million pixels for the document. Review each page with the preview controls. Split a PDF if it exceeds the memory budget."
       }
     },
     {
       "@type": "Question",
-      "name": "Why is the output PDF larger and not searchable?",
+      "name": "What about the Aadhaar QR code?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Because it is image-only by design. Discarding the text layer is what guarantees the masked Aadhaar number cannot be text-extracted. The trade-off is a larger file (typically 2–5× the input) with no Ctrl+F search — worth it for a document you are sharing as proof of identity."
+        "text": "QR codes can carry personal details separately from the printed number. DocRedact decodes them locally and selects probable UIDAI QR codes, but classification and detection can be wrong. Review every QR and use manual mode if needed."
       }
     },
     {
       "@type": "Question",
-      "name": "What about the QR code in the eAadhaar PDF?",
+      "name": "Why is the output not searchable?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "The UIDAI secure QR encodes your full Aadhaar number, date of birth, gender, and address. Masking only the printed digits while leaving the QR readable would defeat the purpose, so the tool finds the UIDAI QR and covers it by default along with the number."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I do this on my phone?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. The tool is mobile-first and runs the same on-device pipeline on a phone. You can open a PDF from your downloads or files app; everything is processed locally in the mobile browser."
+        "text": "The export discards the original text layer so covered text is not retained underneath a mask. The resulting image-only PDF is not searchable and may be larger than the input."
       }
     },
     {
@@ -71,7 +63,7 @@
       "name": "Why is this free?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "The consumer tool is free forever. Revenue comes from a B2B API for businesses (HR tech, fintech KYC) that integrate redaction into their pipelines. See /api-waitlist if that is you."
+        "text": "The consumer tool is free and open source. A browser-side business integration is planned, not currently available. Join the API waitlist for updates."
       }
     }
   ]

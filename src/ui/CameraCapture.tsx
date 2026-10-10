@@ -50,7 +50,7 @@ export function CameraCapture({ onFile, disabled = false }: CameraCaptureProps) 
       <input
         ref={ref}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
         capture="environment"
         onChange={onChange}
         disabled={disabled}

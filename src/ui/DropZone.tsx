@@ -8,6 +8,7 @@
 'use client';
 
 import { useCallback, useState, type DragEvent, type ChangeEvent } from 'react';
+import { DOCUMENT_ACCEPT, DOCUMENT_LIMITS_LABEL } from '@/src/documents/limits';
 
 export interface DropZoneProps {
   onFile: (file: File) => void;
@@ -17,7 +18,7 @@ export interface DropZoneProps {
 
 export function DropZone({
   onFile,
-  accept = 'image/*,application/pdf',
+  accept = DOCUMENT_ACCEPT,
   disabled = false,
 }: DropZoneProps) {
   const [isDragging, setDragging] = useState(false);
@@ -78,7 +79,7 @@ export function DropZone({
         {isDragging ? 'Drop file to redact' : 'Drop or tap to choose a file'}
       </div>
       <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>
-        Images or PDFs. Everything runs locally.
+        {DOCUMENT_LIMITS_LABEL} Everything runs locally.
       </div>
     </label>
   );

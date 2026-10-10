@@ -90,7 +90,7 @@ export function DetectionToggleList({
     <div style={{ marginTop: 12 }}>
       <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
         Review each detection. Uncheck anything that isn&apos;t actually PII. The
-        download is what you see here.
+        tinted selections show what will become solid black in the download.
       </div>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {pages.flatMap((p) =>

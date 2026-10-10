@@ -18,7 +18,7 @@ const RedactorApp = dynamic(
 export const metadata: Metadata = {
   title: 'Redact PAN Card Online — Free, Browser-Only, Open Source | DocRedact.in',
   description:
-    'Black out your PAN number and photo in your browser. Nothing uploaded, nothing stored, nothing analyzed. Free forever, open source (AGPL-3.0). Works on JPG, PNG, and PDF.',
+    'Mask detected PAN numbers and photos locally in your browser. No document upload. Free, open source (AGPL-3.0). Works on JPG, PNG, WebP, and PDF.',
   alternates: {
     canonical: '/redact-pan-card',
     types: {
@@ -52,25 +52,15 @@ export default function RedactPanCardPage() {
       <section style={{ marginTop: 48 }}>
         <h2 style={{ fontSize: 22 }}>Why mask your PAN before sharing it</h2>
         <p>
-          Your Permanent Account Number ties together your income-tax records,
-          bank accounts, mutual-fund folios, demat holdings, and most financial
-          KYC in India. It is requested constantly — by employers during
-          onboarding, by landlords, by brokers, by every fintech signup — and it
-          is very often requested when the recipient only needs to confirm your
-          name or your taxpayer category, not the number itself. Every copy you
-          send is a copy that can leak later from someone else&apos;s inbox,
-          laptop, or storage bucket. A leaked PAN combined with a name and date
-          of birth is enough to seed impersonation and fraudulent account
-          opening, which is exactly why reducing how many full copies exist in
-          the world is worth the thirty seconds it takes to mask one.
+          Sharing a PAN copy also shares the personal details visible on it.
+          If the recipient does not need the full number or photograph, masking
+          those fields reduces what you disclose. Ask which fields are required
+          and whether a redacted copy is acceptable before sharing.
         </p>
         <p>
-          Unlike Aadhaar, PAN has no official partial-mask convention — there is
-          no &ldquo;show the last four&rdquo; standard. So this tool covers the
-          entire 10-character number with a solid black rectangle. The face
-          photograph printed on the card is covered too, because a PAN scan that
-          shows your face plus your name plus your father&apos;s name is a small
-          identity dossier on its own.
+          This tool masks the entire detected 10-character PAN number. Detected
+          photographs are also selected by default. Other details, such as names
+          and dates, remain visible unless you cover them in manual mode.
         </p>
       </section>
 
@@ -92,7 +82,8 @@ export default function RedactPanCardPage() {
         <p>
           One honest limitation worth stating plainly: PAN does not carry a public
           checksum the way an Aadhaar number carries its Verhoeff check digit. For
-          Aadhaar we can mathematically reject almost every false positive; for
+          Aadhaar we use a checksum to reject invalid digit strings; a valid
+          checksum does not prove that a region is an Aadhaar number. For
           PAN the defences are the strict character structure and the holder-type
           gate, which are strong but not a checksum. That is one of the reasons
           every detection on this site appears as a checkbox in a review list
@@ -107,8 +98,8 @@ export default function RedactPanCardPage() {
           the exact same flattening step as the automatic detections.
         </p>
         <p>
-          PDF input is handled by rasterizing each page to a canvas at double
-          resolution with pdf.js, then running the same detection pass on that
+          PDF input is handled by rasterizing each page to a canvas at three times
+          its base resolution with pdf.js, then running the same detection pass on that
           canvas. The masked regions are drawn as solid black rectangles, the
           page image and the mask are flattened together, and a new image-only
           PDF is written in your browser with pdf-lib. Because the output has no
@@ -120,9 +111,7 @@ export default function RedactPanCardPage() {
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 22 }}>Why the privacy story is real and verifiable</h2>
         <p>
-          Most online &ldquo;redact your document&rdquo; tools have a server that
-          receives your file. They promise not to look at it, and you have to take
-          their word for it. DocRedact.in has no such server in the loop. The tool
+          DocRedact.in does not send your file to a server for redaction. The tool
           is a static bundle of JavaScript, HTML, and WebAssembly that your
           browser downloads when you open the page; every step after that runs on
           your own CPU, in your own tab. You can check this three ways:
@@ -133,8 +122,9 @@ export default function RedactPanCardPage() {
             carrying your PAN card goes out.
           </li>
           <li>
-            Disconnect from the internet after the page loads. The redaction still
-            works — there is no server call to depend on.
+            First use downloads the detection software and model assets. Offline
+            use requires those assets to remain available in your browser cache;
+            loading the page alone does not guarantee offline use.
           </li>
           <li>
             Read the code on{' '}
@@ -145,9 +135,9 @@ export default function RedactPanCardPage() {
             >
               GitHub
             </a>
-            . A continuous-integration test asserts that no document-carrying
-            request ever leaves the tab during redaction; if anyone tries to add
-            server-side processing, that test fails and the change cannot merge.
+            . Browser privacy tests check requests during detection and export,
+            including same-origin requests. These tests are a regression check,
+            not a guarantee about every possible file or browser.
           </li>
         </ul>
       </section>

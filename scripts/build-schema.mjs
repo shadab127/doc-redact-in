@@ -16,10 +16,6 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Inline the FAQ here rather than importing from the TS source — Node can't
-// import .ts directly without a loader, and this script runs before tsc.
-// The FAQ is canonical in src/content/faq.ts; when adding a question there,
-// also add it here. A single vitest ensures the two lists stay in sync.
 import {
   MASK_AADHAAR_FAQ,
   REDACT_PAN_FAQ,

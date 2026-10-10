@@ -72,7 +72,10 @@ export function createOCRRunner(): OCRRunner {
     if (!workerPromise) {
       workerPromise = loadTesseract().then((t) =>
         t.createWorker('eng', 1, TESSERACT_PATHS)
-      );
+      ).catch((error) => {
+        workerPromise = null;
+        throw error;
+      });
     }
     return workerPromise;
   };
@@ -104,8 +107,14 @@ export function createOCRRunner(): OCRRunner {
 
     async terminate(): Promise<void> {
       if (!workerPromise) return;
-      const w = await workerPromise;
+      const pending = workerPromise;
       workerPromise = null;
+      let w: TesseractLikeWorker;
+      try {
+        w = await pending;
+      } catch {
+        return;
+      }
       await w.terminate();
     },
   };

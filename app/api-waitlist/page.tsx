@@ -20,16 +20,15 @@ export default function ApiWaitlistPage() {
     <TextPage title="B2B API waitlist">
       <p>
         Building HR tech, KYC, tenancy-check, or document intake software?
-        DocRedact.in offers the same detection pipeline as the consumer tool,
-        exposed as a server-side API with per-redaction billing. Drop your
-        email and the team will reach out when the private beta opens.
+        DocRedact.in is planning a browser-side integration that would let users
+        redact documents before sending them to your application. It is not
+        available yet. Join the waitlist to discuss your needs and receive updates.
       </p>
 
       <p>
-        The API runs the identical Aadhaar + Verhoeff + PAN + MRZ + face + QR
-        detection, zero-retains your document bytes, and returns a flattened
-        image-only PDF. Volume-friendly pricing, India-region deployment, and
-        a VPC-peering / on-premise option are on the roadmap.
+        The intended approach keeps OCR, detection and redaction on the user&apos;s
+        device. We are not offering server-side document processing. Integration
+        details, pricing and release timing are not finalized.
       </p>
 
       <div style={{ marginTop: 24 }}>

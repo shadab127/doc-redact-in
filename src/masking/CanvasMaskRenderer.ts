@@ -17,6 +17,7 @@ const SOLID_KINDS: ReadonlySet<DetectionKind> = new Set<DetectionKind>([
   'pan',
   'passport_mrz',
   'uidai_qr',
+  'other_qr',
   'face',
 ]);
 
@@ -71,20 +72,19 @@ export function renderMasks(
 
   for (const d of detections) {
     if (!SOLID_KINDS.has(d.kind)) continue;
-    const padded = paddedBbox(d, style, canvas.width, canvas.height);
+    const padded = getMaskBounds(d, canvas.width, canvas.height, style);
     ctx.fillStyle = style.solidColor;
     ctx.fillRect(padded.x, padded.y, padded.w, padded.h);
   }
-  // 'other_qr' is surfaced but never auto-masked (RFC §4.7).
 }
 
-function paddedBbox(
+export function getMaskBounds(
   d: Detection,
-  style: MaskRenderStyle,
   maxW: number,
-  maxH: number
+  maxH: number,
+  style: MaskRenderStyle = DEFAULT_STYLE
 ): BoundingBox {
-  if (d.kind === 'uidai_qr') {
+  if (d.kind === 'uidai_qr' || d.kind === 'other_qr') {
     return padBbox(d.maskBbox, style.qrPaddingPx, maxW, maxH);
   }
   // Face detector bbox tightly tracks the detected face; expand slightly to

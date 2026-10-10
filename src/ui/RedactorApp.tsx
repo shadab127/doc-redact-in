@@ -34,6 +34,8 @@ import { friendlyError } from './friendlyError';
 import { ErrorDetails, captureRawError, type RawError } from './ErrorDetails';
 import { setManualHandoff, type ManualHandoff } from './manual/handoff';
 import type { UserBox } from './manual/types';
+import { getMaskBounds } from '@/src/masking/CanvasMaskRenderer';
+import { validateDocumentFile, validateRasterBudget } from '@/src/documents/limits';
 import {
   getRedactorSession,
   setRedactorSession,
@@ -61,14 +63,18 @@ async function rasterImage(file: Blob): Promise<RasterizedPageLike> {
   // sees a rotated document. Fixing this recovers a large slice of the
   // "rotated phone photo" failure class.
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const canvas = document.createElement('canvas');
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D context unavailable');
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
-  return { pageIndex: 0, canvas, width: canvas.width, height: canvas.height };
+  try {
+    validateRasterBudget(bitmap.width, bitmap.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D context unavailable');
+    ctx.drawImage(bitmap, 0, 0);
+    return { pageIndex: 0, canvas, width: canvas.width, height: canvas.height };
+  } finally {
+    bitmap.close?.();
+  }
 }
 
 async function rasterizeSvgBlobToPngFile(
@@ -109,6 +115,7 @@ async function processDocument(
   file: File,
   onStage: (stage: string) => void
 ): Promise<RedactionState> {
+  validateDocumentFile(file);
   const face = sharedFaceRunner;
   const qr = sharedQrRunner;
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
@@ -275,12 +282,11 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
     });
     const seedBoxes = new Map<number, UserBox[]>();
     filteredPerPage.forEach((detections, idx) => {
+      const raster = state.rasters[idx];
+      if (!raster) throw new Error('Document page unavailable');
       const boxes: UserBox[] = detections.map((d) => ({
         id: seedBoxId(),
-        x: d.maskBbox.x,
-        y: d.maskBbox.y,
-        w: d.maskBbox.w,
-        h: d.maskBbox.h,
+        ...getMaskBounds(d, raster.width, raster.height),
       }));
       seedBoxes.set(idx, boxes);
     });
@@ -493,6 +499,8 @@ export function RedactorApp({ sampleUrl }: RedactorAppProps = {}) {
               </div>
               <button
                 onClick={download}
+                disabled={busy}
+                data-testid="redactor-download-btn"
                 style={{
                   padding: '12px 20px',
                   background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 100%)',

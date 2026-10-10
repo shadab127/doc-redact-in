@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <TextPage title="Terms of Service" lastUpdated="2026-05-02">
+    <TextPage title="Terms of Service" lastUpdated="2026-10-10">
       <p>
         DocRedact.in is a free, open-source, browser-based tool. By using it you
         agree to the following.
@@ -24,9 +24,8 @@ export default function TermsPage() {
       <h2>1. Best-effort detection</h2>
       <p>
         The tool runs automated detection (OCR, Verhoeff validation, face
-        detection, QR decoding, MRZ regex) and is correct on most Indian ID
-        documents most of the time. It is not correct on every document under
-        every condition. Small fonts, rotated text, heavy glare, unusual
+        detection, QR decoding, MRZ regex) to suggest regions for masking.
+        Detection can be wrong. Small fonts, rotated text, heavy glare, unusual
         layouts, and handwritten annotations can cause the tool to miss a
         region that should have been masked, or to mask a region that should
         not have been.
@@ -88,8 +87,8 @@ export default function TermsPage() {
       <p>
         The output file is an image-only PDF. No searchable text layer is
         present; therefore the masked regions cannot be recovered via
-        copy-paste or text-extraction tools. The output is typically 2–5×
-        larger than the input as a result.
+        copy-paste or text-extraction tools. Output size varies and may be
+        larger than the input.
       </p>
     </TextPage>
   );

@@ -513,7 +513,7 @@ export function ManualRedactCanvas({
         style={{
           position: 'relative',
           width: displayWidth,
-          height: displayHeight,
+          aspectRatio: `${displayWidth} / ${displayHeight}`,
           maxWidth: '100%',
           borderRadius: 8,
           overflow: 'hidden',

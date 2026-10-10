@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
+  getMaskBounds,
   renderMasks,
   _internal,
   type RenderableCanvas,
@@ -69,11 +70,27 @@ describe('renderMasks', () => {
     expect(fills[0]).toEqual([95, 95, 60, 60]);
   });
 
-  it('never masks other_qr by default', () => {
-    const { canvas, fills, drawImageCalls } = mockCanvas();
+  it('masks other_qr when explicitly passed as an enabled detection', () => {
+    const { canvas, fills } = mockCanvas();
     renderMasks(canvas, [det('other_qr')]);
-    expect(fills).toEqual([]);
-    expect(drawImageCalls).toEqual([]);
+    expect(fills).toEqual([[95, 95, 210, 50]]);
+  });
+
+  it('uses the first-eight-digit mask boundary, not the full detected Aadhaar box', () => {
+    const detection = { ...det('aadhaar'), maskBbox: { x: 100, y: 100, w: 130, h: 40 } };
+    const { canvas, fills } = mockCanvas();
+    const bounds = getMaskBounds(detection, canvas.width, canvas.height);
+    renderMasks(canvas, [detection]);
+    expect(bounds).toEqual(detection.maskBbox);
+    expect(fills).toEqual([[bounds.x, bounds.y, bounds.w, bounds.h]]);
+  });
+
+  it.each(['face', 'uidai_qr'] as const)('shares padded %s boundaries with the preview', (kind) => {
+    const detection = det(kind);
+    const { canvas, fills } = mockCanvas();
+    const bounds = getMaskBounds(detection, canvas.width, canvas.height);
+    renderMasks(canvas, [detection]);
+    expect(fills).toEqual([[bounds.x, bounds.y, bounds.w, bounds.h]]);
   });
 
   it('draws a solid rectangle for face (expanded 15%)', () => {

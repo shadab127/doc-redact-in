@@ -6,7 +6,10 @@
  * See LICENSE file in the project root for full text.
  */
 
+import { DocumentInputError } from '@/src/documents/limits';
+
 export function friendlyError(e: unknown): string {
+  if (e instanceof DocumentInputError) return e.message;
   const msg = e instanceof Error ? e.message : String(e);
 
   if (

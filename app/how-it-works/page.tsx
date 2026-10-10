@@ -35,11 +35,11 @@ export default function HowItWorksPage() {
       >
 {`Your browser tab
   ├── File drop / 📷 Take Photo
-  ├── PDF ? → pdf.js rasterize each page to canvas (2x)
+  ├── PDF ? → pdf.js rasterize each page to canvas (3x for auto-detection)
   │   Image ? → draw to canvas
   ├── Parallel:
   │     ├── Tesseract.js OCR (English, WASM, lazy)
-  │     ├── face-api TinyFaceDetector (WASM, lazy, threshold 0.6)
+  │     ├── MediaPipe BlazeFace (short + full range, WASM, lazy)
   │     └── zxing-wasm QR scan (lazy)
   ├── Regex + Verhoeff:
   │     ├── Aadhaar (12 digit + Verhoeff check → mask first 8)
@@ -95,20 +95,22 @@ No network hop between any of these steps carries document data.`}
           The HTML / JavaScript / CSS of this page (obvious).
         </li>
         <li>
-          The Tesseract, face-api, and zxing-wasm WebAssembly bundles — fetched
+          The Tesseract, MediaPipe, and zxing-wasm WebAssembly bundles — fetched
           lazily the first time you run a redaction so they do not bloat the
           initial page load.
         </li>
         <li>
-          The TinyFaceDetector model weights from <code>/models/</code> — about
-          200 KB, fetched on first face detection.
+          The BlazeFace model weights from <code>/vendor/mediapipe/</code> — fetched
+          on first face detection.
         </li>
       </ul>
       <p>
         Cloudflare Web Analytics sends one small beacon per page view to a
         Cloudflare-hosted endpoint. It contains a page URL and a referrer, and
         is cookie-free. You can see these requests in DevTools — they do not
-        carry any part of your document.
+        carry any part of your document. Loading the page alone does not load
+        all detection assets. Offline use requires those assets to be loaded and
+        available in your browser cache.
       </p>
     </TextPage>
   );

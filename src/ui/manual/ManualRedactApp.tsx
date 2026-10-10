@@ -14,6 +14,7 @@ import { redactedFilename, triggerDownload } from '../download';
 import { friendlyError } from '../friendlyError';
 import { ErrorDetails, captureRawError, type RawError } from '../ErrorDetails';
 import { flattenToImageOnlyPdf } from '@/src/masking/PdfFlattener';
+import { validateDocumentFile, validatePageCount, validateRasterBudget } from '@/src/documents/limits';
 import { ManualRedactCanvas } from './ManualRedactCanvas';
 import type { UserBox } from './types';
 import {
@@ -49,20 +50,24 @@ const PDF_RASTER_SCALE = 2;
 
 async function loadImageToRaster(file: Blob): Promise<RasterPage> {
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const canvas = document.createElement('canvas');
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D context unavailable');
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
-  return {
-    canvas,
-    width: canvas.width,
-    height: canvas.height,
-    widthPt: canvas.width * 0.75,
-    heightPt: canvas.height * 0.75,
-  };
+  try {
+    validateRasterBudget(bitmap.width, bitmap.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D context unavailable');
+    ctx.drawImage(bitmap, 0, 0);
+    return {
+      canvas,
+      width: canvas.width,
+      height: canvas.height,
+      widthPt: canvas.width * 0.75,
+      heightPt: canvas.height * 0.75,
+    };
+  } finally {
+    bitmap.close?.();
+  }
 }
 
 async function loadPdfToRasters(file: File): Promise<RasterPage[]> {
@@ -72,9 +77,12 @@ async function loadPdfToRasters(file: File): Promise<RasterPage[]> {
   const doc = await loadPdf(buffer);
   const pages: RasterPage[] = [];
   try {
+    validatePageCount(doc.numPages);
+    let usedPixels = 0;
     for (let i = 0; i < doc.numPages; i++) {
       const page = await doc.getPage(i + 1);
       const vp = page.getViewport({ scale: 1 });
+      usedPixels = validateRasterBudget(vp.width * PDF_RASTER_SCALE, vp.height * PDF_RASTER_SCALE, usedPixels);
       const raster = await rasterizePage(page, i, { scale: PDF_RASTER_SCALE });
       pages.push({
         canvas: raster.canvas,
@@ -88,17 +96,6 @@ async function loadPdfToRasters(file: File): Promise<RasterPage[]> {
     await doc.destroy();
   }
   return pages;
-}
-
-function drawBoxesOntoCanvas(canvas: HTMLCanvasElement, boxes: readonly UserBox[]) {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.save();
-  ctx.fillStyle = '#000000';
-  for (const b of boxes) {
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-  }
-  ctx.restore();
 }
 
 function handoffToSession(handoff: ManualHandoff): ManualSession {
@@ -180,6 +177,7 @@ export function ManualRedactApp() {
       setStatus('loading');
       setError(null);
       try {
+        validateDocumentFile(file);
         const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
         const pages = isPdf ? await loadPdfToRasters(file) : [await loadImageToRaster(file)];
         applySession({
@@ -270,12 +268,12 @@ export function ManualRedactApp() {
     try {
       const pages = state.pages.map((p, idx) => {
         const boxes = boxesByPage.get(idx) ?? [];
-        drawBoxesOntoCanvas(p.canvas, boxes);
         return {
           canvas: p.canvas,
           widthPt: p.widthPt,
           heightPt: p.heightPt,
           detections: [],
+          manualBoxes: boxes,
         };
       });
       const bytes = await flattenToImageOnlyPdf(pages);
